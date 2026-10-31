@@ -7,6 +7,8 @@ import MisAlertasScreen from './screens/MisAlertasScreen';
 import SeguidasScreen from './screens/SeguidasScreen';
 import BotonGuardarAlerta from './components/BotonGuardarAlerta';
 import BotonSeguir from './components/BotonSeguir';
+import Badge from './components/Badge';
+import useNovedades from './hooks/useNovedades';
 
 // PROVISORIO: entrada para probar alertas y seguidas hasta que exista la navegación real.
 // Borrar cuando se integre el navigator definitivo.
@@ -52,11 +54,18 @@ const PANTALLAS = [
 export default function App() {
   const [actual, setActual] = useState(PANTALLAS[0].clave);
   const [detalleId, setDetalleId] = useState(null);
+  const novedades = useNovedades();
   const { Componente } = PANTALLAS.find((p) => p.clave === actual);
 
   const irA = (clave) => {
     setDetalleId(null);
     setActual(clave);
+    novedades.recargar();
+  };
+
+  const volverDelDetalle = () => {
+    setDetalleId(null);
+    novedades.recargar();
   };
 
   return (
@@ -72,13 +81,14 @@ export default function App() {
               <Text style={[styles.opcionTexto, p.clave === actual && styles.opcionTextoActiva]}>
                 {p.titulo}
               </Text>
+              {novedades[p.clave] > 0 ? <Badge texto={String(novedades[p.clave])} /> : null}
             </Pressable>
           ))}
         </View>
         {detalleId ? (
-          <PruebaDetalle publicacionId={detalleId} onVolver={() => setDetalleId(null)} />
+          <PruebaDetalle publicacionId={detalleId} onVolver={volverDelDetalle} />
         ) : (
-          <Componente key={actual} onAbrirPublicacion={setDetalleId} />
+          <Componente key={actual} onAbrirPublicacion={setDetalleId} onNovedadesVistas={novedades.recargar} />
         )}
         <StatusBar style="auto" />
       </SafeAreaView>
@@ -89,7 +99,7 @@ export default function App() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   selector: { flexDirection: 'row', borderBottomWidth: 1, borderColor: COLORS.border },
-  opcion: { flex: 1, paddingVertical: 12, alignItems: 'center' },
+  opcion: { flex: 1, paddingVertical: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 },
   opcionActiva: { borderBottomWidth: 2, borderColor: COLORS.primary },
   opcionTexto: { color: COLORS.muted },
   opcionTextoActiva: { color: COLORS.primary, fontWeight: 'bold' },

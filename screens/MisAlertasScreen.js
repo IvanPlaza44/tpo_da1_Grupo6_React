@@ -1,14 +1,37 @@
 import { useState } from 'react';
 import { Alert, FlatList, StyleSheet } from 'react-native';
-import { eliminarAlerta, listarAlertas, pausarAlerta, reactivarAlerta } from '../services/alertas';
+import {
+  eliminarAlerta,
+  listarAlertas,
+  marcarAlertaRevisada,
+  pausarAlerta,
+  reactivarAlerta,
+} from '../services/alertas';
 import { getErrorMessage } from '../services/api';
 import useListado from '../hooks/useListado';
 import { EstadoCargando, EstadoError, EstadoVacio } from '../components/EstadoPantalla';
 import TarjetaAlerta from '../components/TarjetaAlerta';
 
-export default function MisAlertasScreen() {
+// onVerResultados(alerta): lo conecta la navegación para abrir los resultados del buscador con sus criterios.
+// onNovedadesVistas(): avisa que cambiaron las novedades (para refrescar el badge de la pestaña).
+export default function MisAlertasScreen({ onVerResultados, onNovedadesVistas }) {
   const { datos, setDatos, cargando, refrescando, error, recargar, refrescar } = useListado(listarAlertas);
   const [ocupadas, setOcupadas] = useState(new Set());
+
+  const ponerNovedades = (id, hayNovedades, cantidadNovedades) =>
+    setDatos((prev) => prev.map((a) => (a.id === id ? { ...a, hayNovedades, cantidadNovedades } : a)));
+
+  const verAlerta = async (alerta) => {
+    onVerResultados?.(alerta);
+    if (!alerta.hayNovedades) return;
+    ponerNovedades(alerta.id, false, 0);
+    try {
+      await marcarAlertaRevisada(alerta.id);
+      onNovedadesVistas?.();
+    } catch {
+      ponerNovedades(alerta.id, alerta.hayNovedades, alerta.cantidadNovedades);
+    }
+  };
 
   const conOcupada = async (id, accion) => {
     setOcupadas((prev) => new Set(prev).add(id));
@@ -29,6 +52,7 @@ export default function MisAlertasScreen() {
     conOcupada(alerta.id, async () => {
       await (alerta.activa ? pausarAlerta(alerta.id) : reactivarAlerta(alerta.id));
       setDatos((prev) => prev.map((a) => (a.id === alerta.id ? { ...a, activa: !alerta.activa } : a)));
+      onNovedadesVistas?.();
     });
 
   const confirmarEliminar = (alerta) =>
@@ -41,6 +65,7 @@ export default function MisAlertasScreen() {
           conOcupada(alerta.id, async () => {
             await eliminarAlerta(alerta.id);
             setDatos((prev) => prev.filter((a) => a.id !== alerta.id));
+            onNovedadesVistas?.();
           }),
       },
     ]);
@@ -65,6 +90,7 @@ export default function MisAlertasScreen() {
         <TarjetaAlerta
           alerta={item}
           ocupada={ocupadas.has(item.id)}
+          onPress={() => verAlerta(item)}
           onAlternarPausa={() => alternarPausa(item)}
           onEliminar={() => confirmarEliminar(item)}
         />

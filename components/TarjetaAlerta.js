@@ -2,6 +2,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { COLORS } from '../config';
 import { CATEGORIAS, RANGOS_FECHA, TIPOS } from '../utils/etiquetas';
 import { formatearFecha } from '../utils/fechas';
+import Badge from './Badge';
 
 const textoFecha = ({ rangoFecha, fechaDesde, fechaHasta }) => {
   if (rangoFecha !== 'RANGO') return RANGOS_FECHA[rangoFecha];
@@ -19,7 +20,8 @@ const textoNovedades = ({ hayNovedades, cantidadNovedades }) => {
   return hayNovedades ? 'Hay publicaciones nuevas' : 'Sin novedades';
 };
 
-export default function TarjetaAlerta({ alerta, ocupada = false, onAlternarPausa, onEliminar }) {
+export default function TarjetaAlerta({ alerta, ocupada = false, onPress, onAlternarPausa, onEliminar }) {
+  const conNovedades = alerta.activa && alerta.hayNovedades;
   const criterios = [
     ['Tipo', TIPOS[alerta.tipo]],
     ['Categoría', CATEGORIAS[alerta.categoria]],
@@ -29,10 +31,22 @@ export default function TarjetaAlerta({ alerta, ocupada = false, onAlternarPausa
   ].filter(([, valor]) => valor);
 
   return (
-    <View style={[styles.tarjeta, !alerta.activa && styles.pausada]}>
+    <Pressable
+      style={({ pressed }) => [
+        styles.tarjeta,
+        !alerta.activa && styles.pausada,
+        conNovedades && styles.tarjetaConNovedades,
+        pressed && onPress && styles.presionada,
+      ]}
+      disabled={!onPress}
+      onPress={onPress}
+    >
       <View style={styles.encabezado}>
         <Text style={styles.nombre}>{alerta.nombre}</Text>
         {!alerta.activa ? <Text style={styles.etiquetaPausada}>Pausada</Text> : null}
+        {conNovedades ? (
+          <Badge texto={alerta.cantidadNovedades > 0 ? String(alerta.cantidadNovedades) : null} />
+        ) : null}
       </View>
       {criterios.length > 0 ? (
         criterios.map(([etiqueta, valor]) => (
@@ -44,7 +58,7 @@ export default function TarjetaAlerta({ alerta, ocupada = false, onAlternarPausa
       ) : (
         <Text style={styles.criterio}>Sin filtros</Text>
       )}
-      <Text style={[styles.novedades, alerta.hayNovedades && styles.conNovedades]}>
+      <Text style={[styles.novedades, conNovedades && styles.conNovedades]}>
         {textoNovedades(alerta)}
       </Text>
       {onAlternarPausa || onEliminar ? (
@@ -64,13 +78,15 @@ export default function TarjetaAlerta({ alerta, ocupada = false, onAlternarPausa
           ) : null}
         </View>
       ) : null}
-    </View>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   tarjeta: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, padding: 12, gap: 2 },
   pausada: { backgroundColor: '#f3f4f6' },
+  tarjetaConNovedades: { borderColor: COLORS.primary, borderWidth: 2 },
+  presionada: { opacity: 0.6 },
   encabezado: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 4 },
   nombre: { flex: 1, fontSize: 16, fontWeight: 'bold', color: COLORS.text },
   etiquetaPausada: {
