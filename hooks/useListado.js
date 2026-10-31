@@ -32,6 +32,7 @@ export default function useListado(cargar) {
 
   return {
     datos,
+    setDatos,
     cargando,
     refrescando,
     error,

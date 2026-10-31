@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { COLORS } from '../config';
 import { CATEGORIAS, RANGOS_FECHA, TIPOS } from '../utils/etiquetas';
 import { formatearFecha } from '../utils/fechas';
@@ -19,7 +19,7 @@ const textoNovedades = ({ hayNovedades, cantidadNovedades }) => {
   return hayNovedades ? 'Hay publicaciones nuevas' : 'Sin novedades';
 };
 
-export default function TarjetaAlerta({ alerta }) {
+export default function TarjetaAlerta({ alerta, ocupada = false, onAlternarPausa, onEliminar }) {
   const criterios = [
     ['Tipo', TIPOS[alerta.tipo]],
     ['Categoría', CATEGORIAS[alerta.categoria]],
@@ -29,8 +29,11 @@ export default function TarjetaAlerta({ alerta }) {
   ].filter(([, valor]) => valor);
 
   return (
-    <View style={styles.tarjeta}>
-      <Text style={styles.nombre}>{alerta.nombre}</Text>
+    <View style={[styles.tarjeta, !alerta.activa && styles.pausada]}>
+      <View style={styles.encabezado}>
+        <Text style={styles.nombre}>{alerta.nombre}</Text>
+        {!alerta.activa ? <Text style={styles.etiquetaPausada}>Pausada</Text> : null}
+      </View>
       {criterios.length > 0 ? (
         criterios.map(([etiqueta, valor]) => (
           <Text key={etiqueta} style={styles.criterio}>
@@ -44,13 +47,46 @@ export default function TarjetaAlerta({ alerta }) {
       <Text style={[styles.novedades, alerta.hayNovedades && styles.conNovedades]}>
         {textoNovedades(alerta)}
       </Text>
+      {onAlternarPausa || onEliminar ? (
+        <View style={styles.acciones}>
+          {ocupada ? <ActivityIndicator color={COLORS.primary} /> : null}
+          {onAlternarPausa ? (
+            <Pressable style={styles.accion} disabled={ocupada} onPress={onAlternarPausa}>
+              <Text style={[styles.accionTexto, ocupada && styles.deshabilitado]}>
+                {alerta.activa ? 'Pausar' : 'Reactivar'}
+              </Text>
+            </Pressable>
+          ) : null}
+          {onEliminar ? (
+            <Pressable style={styles.accion} disabled={ocupada} onPress={onEliminar}>
+              <Text style={[styles.accionTexto, styles.eliminar, ocupada && styles.deshabilitado]}>Eliminar</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   tarjeta: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, padding: 12, gap: 2 },
-  nombre: { fontSize: 16, fontWeight: 'bold', color: COLORS.text, marginBottom: 4 },
+  pausada: { backgroundColor: '#f3f4f6' },
+  encabezado: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 4 },
+  nombre: { flex: 1, fontSize: 16, fontWeight: 'bold', color: COLORS.text },
+  etiquetaPausada: {
+    color: COLORS.muted,
+    fontSize: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  acciones: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 16, marginTop: 8 },
+  accion: { paddingVertical: 4 },
+  accionTexto: { color: COLORS.primary, fontWeight: 'bold' },
+  eliminar: { color: COLORS.danger },
+  deshabilitado: { opacity: 0.4 },
   criterio: { color: COLORS.text },
   etiqueta: { color: COLORS.muted },
   novedades: { marginTop: 6, color: COLORS.muted },
