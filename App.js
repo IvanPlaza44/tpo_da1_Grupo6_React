@@ -5,6 +5,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from './config';
 import MisAlertasScreen from './screens/MisAlertasScreen';
 import SeguidasScreen from './screens/SeguidasScreen';
+import HistorialScreen from './screens/HistorialScreen';
 import BotonGuardarAlerta from './components/BotonGuardarAlerta';
 import BotonSeguir from './components/BotonSeguir';
 import Badge from './components/Badge';
@@ -103,17 +104,32 @@ const PANTALLAS = [
   { clave: 'alertas', titulo: 'Mis alertas', Componente: MisAlertasScreen },
   { clave: 'seguidas', titulo: 'Seguidas', Componente: SeguidasScreen },
   { clave: 'guardar', titulo: 'Probar guardar', Componente: PruebaGuardarAlerta },
-  { clave: 'historial', titulo: 'Probar 10', Componente: PruebaHistorial },
+  { clave: 'historial', titulo: 'Historial', Componente: HistorialScreen },
+  { clave: 'probar10', titulo: 'Probar 10', Componente: PruebaHistorial },
 ];
+
+// Reemplaza al perfil público real (lo hace otro integrante).
+function PruebaPerfil({ usuarioId, onVolver }) {
+  return (
+    <View style={styles.prueba}>
+      <Pressable onPress={onVolver}>
+        <Text style={styles.volver}>‹ Volver</Text>
+      </Pressable>
+      <Text style={styles.pruebaTexto}>Perfil público provisorio del usuario #{usuarioId}</Text>
+    </View>
+  );
+}
 
 export default function App() {
   const [actual, setActual] = useState(PANTALLAS[0].clave);
   const [detalleId, setDetalleId] = useState(null);
+  const [perfilId, setPerfilId] = useState(null);
   const novedades = useNovedades();
   const { Componente } = PANTALLAS.find((p) => p.clave === actual);
 
   const irA = (clave) => {
     setDetalleId(null);
+    setPerfilId(null);
     setActual(clave);
     novedades.recargar();
   };
@@ -126,7 +142,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.container}>
-        <View style={styles.selector}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.selector}>
           {PANTALLAS.map((p) => (
             <Pressable
               key={p.clave}
@@ -139,11 +155,18 @@ export default function App() {
               {novedades[p.clave] > 0 ? <Badge texto={String(novedades[p.clave])} /> : null}
             </Pressable>
           ))}
-        </View>
+        </ScrollView>
         {detalleId ? (
           <PruebaDetalle publicacionId={detalleId} onVolver={volverDelDetalle} />
+        ) : perfilId ? (
+          <PruebaPerfil usuarioId={perfilId} onVolver={() => setPerfilId(null)} />
         ) : (
-          <Componente key={actual} onAbrirPublicacion={setDetalleId} onNovedadesVistas={novedades.recargar} />
+          <Componente
+            key={actual}
+            onAbrirPublicacion={setDetalleId}
+            onAbrirPerfil={setPerfilId}
+            onNovedadesVistas={novedades.recargar}
+          />
         )}
         <StatusBar style="auto" />
       </SafeAreaView>
@@ -153,8 +176,8 @@ export default function App() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  selector: { flexDirection: 'row', borderBottomWidth: 1, borderColor: COLORS.border },
-  opcion: { flex: 1, paddingVertical: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 },
+  selector: { flexGrow: 0, borderBottomWidth: 1, borderColor: COLORS.border },
+  opcion: { paddingVertical: 12, paddingHorizontal: 14, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 },
   opcionActiva: { borderBottomWidth: 2, borderColor: COLORS.primary },
   opcionTexto: { color: COLORS.muted },
   opcionTextoActiva: { color: COLORS.primary, fontWeight: 'bold' },
