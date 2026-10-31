@@ -7,6 +7,7 @@ import { EstadoCargando, EstadoError, EstadoVacio } from '../components/EstadoPa
 import TarjetaCaso from '../components/TarjetaCaso';
 import FiltrosHistorial, { FILTROS_VACIOS, hayFiltros } from '../components/FiltrosHistorial';
 import ModalValoracion from '../components/ModalValoracion';
+import ModalAgradecimiento from '../components/ModalAgradecimiento';
 
 const PESTANIAS = [
   {
@@ -56,16 +57,24 @@ function ListaCasos({ pestania, filtros, onAbrirPerfil }) {
   );
   const { datos, setDatos, cargando, refrescando, error, recargar, refrescar } = useListado(cargar);
   const [aValorar, setAValorar] = useState(null);
+  const [aAgradecer, setAAgradecer] = useState(null);
   const filtrado = hayFiltros(filtros);
 
+  const actualizarCaso = (id, cambios) =>
+    setDatos((prev) => prev.map((c) => (c.publicacionId === id ? { ...c, ...cambios } : c)));
+
   const marcarValorado = (valoracion) => {
-    const id = aValorar.publicacionId;
-    setDatos((prev) =>
-      prev.map((c) =>
-        c.publicacionId === id ? { ...c, miValoracion: valoracion, yaValore: true, puedeValorar: false } : c
-      )
-    );
+    actualizarCaso(aValorar.publicacionId, { miValoracion: valoracion, yaValore: true, puedeValorar: false });
     setAValorar(null);
+  };
+
+  const marcarAgradecido = (agradecimiento) => {
+    actualizarCaso(aAgradecer.publicacionId, {
+      miAgradecimiento: agradecimiento,
+      yaAgradeci: true,
+      puedeAgradecer: false,
+    });
+    setAAgradecer(null);
   };
 
   if (cargando) return <EstadoCargando mensaje="Cargando historial…" />;
@@ -87,10 +96,16 @@ function ListaCasos({ pestania, filtros, onAbrirPerfil }) {
           )
         }
         renderItem={({ item }) => (
-          <TarjetaCaso caso={item} onAbrirPerfil={onAbrirPerfil} onValorar={setAValorar} />
+          <TarjetaCaso
+            caso={item}
+            onAbrirPerfil={onAbrirPerfil}
+            onValorar={setAValorar}
+            onAgradecer={setAAgradecer}
+          />
         )}
       />
       <ModalValoracion caso={aValorar} onCerrar={() => setAValorar(null)} onValorado={marcarValorado} />
+      <ModalAgradecimiento caso={aAgradecer} onCerrar={() => setAAgradecer(null)} onAgradecido={marcarAgradecido} />
     </>
   );
 }

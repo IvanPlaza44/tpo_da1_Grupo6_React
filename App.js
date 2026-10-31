@@ -9,10 +9,8 @@ import HistorialScreen from './screens/HistorialScreen';
 import BotonGuardarAlerta from './components/BotonGuardarAlerta';
 import BotonSeguir from './components/BotonSeguir';
 import Badge from './components/Badge';
+import ListaAgradecimientos from './components/ListaAgradecimientos';
 import useNovedades from './hooks/useNovedades';
-import { getErrorMessage } from './services/api';
-import { listarHistorial } from './services/historial';
-import { agradecer, listarAgradecimientos, valorar } from './services/valoraciones';
 
 // PROVISORIO: entrada para probar alertas y seguidas hasta que exista la navegación real.
 // Borrar cuando se integre el navigator definitivo.
@@ -49,74 +47,23 @@ function PruebaDetalle({ publicacionId, onVolver }) {
   );
 }
 
-// Prueba de los services del punto 10 hasta que estén las pantallas.
-const ACCIONES_HISTORIAL = [
-  ['Historial completo', () => listarHistorial()],
-  ['Solo Devolví', () => listarHistorial({ rol: 'DEVOLVI' })],
-  ['Solo Recuperé', () => listarHistorial({ rol: 'RECUPERE' })],
-  ['Valorar #201 (en plazo)', () => valorar({ publicacionId: 201, positiva: true, comentario: 'Muy amable' })],
-  ['Valorar #203 (ya valorada)', () => valorar({ publicacionId: 203, positiva: false })],
-  ['Valorar #204 (fuera de plazo)', () => valorar({ publicacionId: 204, positiva: true })],
-  ['Agradecer #202', () => agradecer({ publicacionId: 202, mensaje: 'Gracias Diego!' })],
-  ['Agradecer #201 (devolví)', () => agradecer({ publicacionId: 201, mensaje: 'Gracias' })],
-  ['Agradecimientos de Diego (32)', () => listarAgradecimientos(32)],
-  ['Agradecimientos de Sofía (33)', () => listarAgradecimientos(33)],
-];
-
-function PruebaHistorial() {
-  const [resultado, setResultado] = useState('Tocá una acción');
-  const [cargando, setCargando] = useState(false);
-
-  const correr = async (nombre, accion) => {
-    setCargando(true);
-    try {
-      const data = await accion();
-      setResultado(`${nombre}\n\n${data === undefined ? 'OK' : JSON.stringify(data, null, 2)}`);
-    } catch (e) {
-      setResultado(`${nombre}\n\nERROR: ${getErrorMessage(e)}`);
-    } finally {
-      setCargando(false);
-    }
-  };
-
-  return (
-    <View style={styles.prueba}>
-      <View style={styles.pruebaBotones}>
-        {ACCIONES_HISTORIAL.map(([nombre, accion]) => (
-          <Pressable
-            key={nombre}
-            style={[styles.pruebaBoton, cargando && styles.pruebaBotonDeshabilitado]}
-            disabled={cargando}
-            onPress={() => correr(nombre, accion)}
-          >
-            <Text style={styles.pruebaBotonTexto}>{nombre}</Text>
-          </Pressable>
-        ))}
-      </View>
-      <ScrollView style={styles.pruebaResultado}>
-        <Text style={styles.pruebaCodigo}>{cargando ? 'Cargando…' : resultado}</Text>
-      </ScrollView>
-    </View>
-  );
-}
-
 const PANTALLAS = [
   { clave: 'alertas', titulo: 'Mis alertas', Componente: MisAlertasScreen },
   { clave: 'seguidas', titulo: 'Seguidas', Componente: SeguidasScreen },
   { clave: 'guardar', titulo: 'Probar guardar', Componente: PruebaGuardarAlerta },
   { clave: 'historial', titulo: 'Historial', Componente: HistorialScreen },
-  { clave: 'probar10', titulo: 'Probar 10', Componente: PruebaHistorial },
 ];
 
-// Reemplaza al perfil público real (lo hace otro integrante).
+// Reemplaza al perfil público real (lo hace otro integrante) para probar ListaAgradecimientos.
 function PruebaPerfil({ usuarioId, onVolver }) {
   return (
-    <View style={styles.prueba}>
+    <ScrollView contentContainerStyle={styles.pruebaScroll}>
       <Pressable onPress={onVolver}>
         <Text style={styles.volver}>‹ Volver</Text>
       </Pressable>
       <Text style={styles.pruebaTexto}>Perfil público provisorio del usuario #{usuarioId}</Text>
-    </View>
+      <ListaAgradecimientos usuarioId={usuarioId} />
+    </ScrollView>
   );
 }
 
@@ -182,12 +129,8 @@ const styles = StyleSheet.create({
   opcionTexto: { color: COLORS.muted },
   opcionTextoActiva: { color: COLORS.primary, fontWeight: 'bold' },
   prueba: { flex: 1, padding: 16, gap: 12 },
+  pruebaScroll: { padding: 16, gap: 12 },
   pruebaTexto: { color: COLORS.muted },
   pruebaCodigo: { fontFamily: 'monospace', fontSize: 12, color: COLORS.text },
   volver: { color: COLORS.primary, fontSize: 16 },
-  pruebaBotones: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  pruebaBoton: { backgroundColor: COLORS.primary, paddingVertical: 8, paddingHorizontal: 10, borderRadius: 6 },
-  pruebaBotonDeshabilitado: { opacity: 0.5 },
-  pruebaBotonTexto: { color: '#fff', fontSize: 12 },
-  pruebaResultado: { flex: 1, borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, padding: 8 },
 });

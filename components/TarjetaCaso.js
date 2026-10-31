@@ -41,8 +41,32 @@ function Valoracion({ caso, onValorar }) {
   );
 }
 
+// Solo quien recuperó su objeto puede agradecer públicamente a quien se lo devolvió.
+function Agradecimiento({ caso, onAgradecer }) {
+  const { rol, miAgradecimiento, yaAgradeci, puedeAgradecer } = caso;
+  if (rol !== 'RECUPERE') return null;
+
+  if (yaAgradeci) {
+    return (
+      <View style={styles.seccion}>
+        <Text style={styles.valoracionTexto}>Agradecimiento público:</Text>
+        {miAgradecimiento?.mensaje ? <Text style={styles.comentario}>"{miAgradecimiento.mensaje}"</Text> : null}
+      </View>
+    );
+  }
+  if (!puedeAgradecer || !onAgradecer) return null;
+  return (
+    <View style={[styles.seccion, styles.valoracionFila]}>
+      <Text style={styles.plazo}>Podés dejarle un agradecimiento visible en su perfil</Text>
+      <Pressable style={styles.botonSecundario} onPress={() => onAgradecer(caso)}>
+        <Text style={styles.botonSecundarioTexto}>Agradecer</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 // Un caso resuelto del historial (devolví o recuperé).
-export default function TarjetaCaso({ caso, onAbrirPerfil, onValorar }) {
+export default function TarjetaCaso({ caso, onAbrirPerfil, onValorar, onAgradecer }) {
   const { rol, titulo, tipo, categoria, fechaDevolucion, fotoPrincipal, contraparte } = caso;
 
   return (
@@ -72,6 +96,7 @@ export default function TarjetaCaso({ caso, onAbrirPerfil, onValorar }) {
         </View>
       </View>
       <Valoracion caso={caso} onValorar={onValorar} />
+      <Agradecimiento caso={caso} onAgradecer={onAgradecer} />
     </View>
   );
 }
@@ -88,6 +113,9 @@ const styles = StyleSheet.create({
   plazo: { flex: 1, color: COLORS.muted },
   botonValorar: { backgroundColor: COLORS.primary, paddingVertical: 6, paddingHorizontal: 14, borderRadius: 6 },
   botonValorarTexto: { color: '#fff', fontWeight: 'bold' },
+  seccion: { marginTop: 8 },
+  botonSecundario: { borderWidth: 1, borderColor: COLORS.primary, paddingVertical: 6, paddingHorizontal: 14, borderRadius: 6 },
+  botonSecundarioTexto: { color: COLORS.primary, fontWeight: 'bold' },
   foto: { width: 64, height: 64, borderRadius: 4 },
   sinFoto: { backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center' },
   sinFotoTexto: { color: COLORS.muted, fontSize: 12 },
