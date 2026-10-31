@@ -6,6 +6,7 @@ import useListado from '../hooks/useListado';
 import { EstadoCargando, EstadoError, EstadoVacio } from '../components/EstadoPantalla';
 import TarjetaCaso from '../components/TarjetaCaso';
 import FiltrosHistorial, { FILTROS_VACIOS, hayFiltros } from '../components/FiltrosHistorial';
+import ModalValoracion from '../components/ModalValoracion';
 
 const PESTANIAS = [
   {
@@ -53,28 +54,44 @@ function ListaCasos({ pestania, filtros, onAbrirPerfil }) {
     () => listarHistorial({ rol: pestania.rol, desde, hasta, tipo }),
     [pestania.rol, desde, hasta, tipo]
   );
-  const { datos, cargando, refrescando, error, recargar, refrescar } = useListado(cargar);
+  const { datos, setDatos, cargando, refrescando, error, recargar, refrescar } = useListado(cargar);
+  const [aValorar, setAValorar] = useState(null);
   const filtrado = hayFiltros(filtros);
+
+  const marcarValorado = (valoracion) => {
+    const id = aValorar.publicacionId;
+    setDatos((prev) =>
+      prev.map((c) =>
+        c.publicacionId === id ? { ...c, miValoracion: valoracion, yaValore: true, puedeValorar: false } : c
+      )
+    );
+    setAValorar(null);
+  };
 
   if (cargando) return <EstadoCargando mensaje="Cargando historial…" />;
   if (error) return <EstadoError mensaje={error} onReintentar={recargar} />;
 
   return (
-    <FlatList
-      data={datos}
-      keyExtractor={(item) => String(item.publicacionId)}
-      refreshing={refrescando}
-      onRefresh={refrescar}
-      contentContainerStyle={datos.length === 0 ? styles.vacio : styles.lista}
-      ListEmptyComponent={
-        filtrado ? (
-          <EstadoVacio titulo="No hay casos con estos filtros" mensaje="Probá con otro rango de fechas o tipo." />
-        ) : (
-          <EstadoVacio titulo={pestania.vacio} mensaje={pestania.vacioMensaje} />
-        )
-      }
-      renderItem={({ item }) => <TarjetaCaso caso={item} onAbrirPerfil={onAbrirPerfil} />}
-    />
+    <>
+      <FlatList
+        data={datos}
+        keyExtractor={(item) => String(item.publicacionId)}
+        refreshing={refrescando}
+        onRefresh={refrescar}
+        contentContainerStyle={datos.length === 0 ? styles.vacio : styles.lista}
+        ListEmptyComponent={
+          filtrado ? (
+            <EstadoVacio titulo="No hay casos con estos filtros" mensaje="Probá con otro rango de fechas o tipo." />
+          ) : (
+            <EstadoVacio titulo={pestania.vacio} mensaje={pestania.vacioMensaje} />
+          )
+        }
+        renderItem={({ item }) => (
+          <TarjetaCaso caso={item} onAbrirPerfil={onAbrirPerfil} onValorar={setAValorar} />
+        )}
+      />
+      <ModalValoracion caso={aValorar} onCerrar={() => setAValorar(null)} onValorado={marcarValorado} />
+    </>
   );
 }
 
