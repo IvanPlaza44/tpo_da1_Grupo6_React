@@ -3,9 +3,11 @@ import api from './api';
 // Publicaciones seguidas (/api/publicaciones/{id}/seguir).
 //
 // EXPO_PUBLIC_MOCKS=true simula todo (sirve sin backend ni login).
+// EXPO_PUBLIC_MOCKS=vacio | error simula todo y fuerza ese resultado en el listado.
 // PENDIENTE marca lo que el backend todavía no tiene: queda simulado aunque se use
 // el backend real. Pasar a false cuando el endpoint exista.
-const SOLO_MOCKS = process.env.EXPO_PUBLIC_MOCKS === 'true';
+const MODO_MOCK = process.env.EXPO_PUBLIC_MOCKS;
+const SOLO_MOCKS = ['true', 'vacio', 'error'].includes(MODO_MOCK);
 const PENDIENTE = {
   listar: true, // GET /publicaciones/seguidas con campo `cambioEstado`
   marcarVista: true, // PATCH /publicaciones/{id}/seguir/visto
@@ -50,6 +52,8 @@ let mockSeguidas = [
 export const listarSeguidas = async () => {
   if (SOLO_MOCKS || PENDIENTE.listar) {
     await demora();
+    if (MODO_MOCK === 'error') throw new Error('Error simulado');
+    if (MODO_MOCK === 'vacio') return [];
     return mockSeguidas;
   }
   const { data } = await api.get('/api/publicaciones/seguidas');

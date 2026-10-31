@@ -3,9 +3,11 @@ import api from './api';
 // Alertas = búsquedas guardadas (/api/busquedas-guardadas).
 //
 // EXPO_PUBLIC_MOCKS=true simula todo (sirve sin backend ni login).
+// EXPO_PUBLIC_MOCKS=vacio | error simula todo y fuerza ese resultado en el listado.
 // PENDIENTE marca lo que el backend todavía no tiene: queda simulado aunque se use
 // el backend real. Pasar a false cuando el endpoint exista.
-const SOLO_MOCKS = process.env.EXPO_PUBLIC_MOCKS === 'true';
+const MODO_MOCK = process.env.EXPO_PUBLIC_MOCKS;
+const SOLO_MOCKS = ['true', 'vacio', 'error'].includes(MODO_MOCK);
 const PENDIENTE = {
   pausar: true, // PATCH /busquedas-guardadas/{id}/pausar y /reactivar + campo `activa`
 };
@@ -57,6 +59,8 @@ const normalizar = (alerta) => ({
 export const listarAlertas = async () => {
   if (SOLO_MOCKS) {
     await demora();
+    if (MODO_MOCK === 'error') throw new Error('Error simulado');
+    if (MODO_MOCK === 'vacio') return [];
     return mockAlertas.map(normalizar);
   }
   const { data } = await api.get('/api/busquedas-guardadas');
