@@ -9,8 +9,8 @@ import api from './api';
 const MODO_MOCK = process.env.EXPO_PUBLIC_MOCKS;
 const SOLO_MOCKS = ['true', 'vacio', 'error'].includes(MODO_MOCK);
 const PENDIENTE = {
-  listar: true, // GET /publicaciones/seguidas con campo `cambioEstado`
-  marcarVista: true, // PATCH /publicaciones/{id}/seguir/visto
+  listar: false, // GET /publicaciones/seguidas con campo `cambioEstado`
+  marcarVista: false, // PATCH /publicaciones/{id}/seguir/visto
 };
 
 const demora = (ms = 400) => new Promise((resolve) => setTimeout(resolve, ms));
