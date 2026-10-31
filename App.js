@@ -6,18 +6,20 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { COLORS } from './config';
 import { AuthProvider } from './context/AuthContext';
+import { ProfileProvider } from './context/ProfileContext';
 import { useAuth } from './hooks/useAuth';
 import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
 import ForgotPasswordScreen from './screens/ForgotPasswordScreen';
 import SettingsScreen from './screens/SettingsScreen';
+import EditProfileScreen from './screens/EditProfileScreen';
+import PublicProfileScreen from './screens/PublicProfileScreen';
 import MisAlertasScreen from './screens/MisAlertasScreen';
 import SeguidasScreen from './screens/SeguidasScreen';
 import HistorialScreen from './screens/HistorialScreen';
 import BotonGuardarAlerta from './components/BotonGuardarAlerta';
 import BotonSeguir from './components/BotonSeguir';
 import Badge from './components/Badge';
-import ListaAgradecimientos from './components/ListaAgradecimientos';
 import useNovedades from './hooks/useNovedades';
 
 const Stack = createNativeStackNavigator();
@@ -56,24 +58,13 @@ function PruebaDetalle({ publicacionId, onVolver }) {
 }
 
 const PANTALLAS = [
+  { clave: 'perfil', titulo: 'Mi Perfil', Componente: EditProfileScreen },
   { clave: 'alertas', titulo: 'Mis alertas', Componente: MisAlertasScreen },
   { clave: 'seguidas', titulo: 'Seguidas', Componente: SeguidasScreen },
   { clave: 'guardar', titulo: 'Probar guardar', Componente: PruebaGuardarAlerta },
   { clave: 'historial', titulo: 'Historial', Componente: HistorialScreen },
   { clave: 'configuracion', titulo: 'Configuración', Componente: SettingsScreen },
 ];
-
-function PruebaPerfil({ usuarioId, onVolver }) {
-  return (
-    <ScrollView contentContainerStyle={styles.pruebaScroll}>
-      <Pressable onPress={onVolver}>
-        <Text style={styles.volver}>‹ Volver</Text>
-      </Pressable>
-      <Text style={styles.pruebaTexto}>Perfil público provisorio del usuario #{usuarioId}</Text>
-      <ListaAgradecimientos usuarioId={usuarioId} />
-    </ScrollView>
-  );
-}
 
 function AuthenticatedApp() {
   const { user, logout } = useAuth();
@@ -124,7 +115,7 @@ function AuthenticatedApp() {
       {detalleId ? (
         <PruebaDetalle publicacionId={detalleId} onVolver={volverDelDetalle} />
       ) : perfilId ? (
-        <PruebaPerfil usuarioId={perfilId} onVolver={() => setPerfilId(null)} />
+        <PublicProfileScreen usuarioId={perfilId} onVolver={() => setPerfilId(null)} />
       ) : (
         <Componente
           key={actual}
@@ -172,7 +163,9 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <RootNavigator />
+        <ProfileProvider>
+          <RootNavigator />
+        </ProfileProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );
