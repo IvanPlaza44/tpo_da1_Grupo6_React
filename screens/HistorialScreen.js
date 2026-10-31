@@ -5,6 +5,7 @@ import { listarHistorial } from '../services/historial';
 import useListado from '../hooks/useListado';
 import { EstadoCargando, EstadoError, EstadoVacio } from '../components/EstadoPantalla';
 import TarjetaCaso from '../components/TarjetaCaso';
+import FiltrosHistorial, { FILTROS_VACIOS, hayFiltros } from '../components/FiltrosHistorial';
 
 const PESTANIAS = [
   {
@@ -24,6 +25,7 @@ const PESTANIAS = [
 // onAbrirPerfil(usuarioId): lo conecta la navegación para ir al perfil público de la contraparte.
 export default function HistorialScreen({ onAbrirPerfil }) {
   const [rol, setRol] = useState(PESTANIAS[0].rol);
+  const [filtros, setFiltros] = useState(FILTROS_VACIOS);
   const pestania = PESTANIAS.find((p) => p.rol === rol);
 
   return (
@@ -39,14 +41,20 @@ export default function HistorialScreen({ onAbrirPerfil }) {
           </Pressable>
         ))}
       </View>
-      <ListaCasos key={rol} pestania={pestania} onAbrirPerfil={onAbrirPerfil} />
+      <FiltrosHistorial filtros={filtros} onCambiar={setFiltros} />
+      <ListaCasos key={rol} pestania={pestania} filtros={filtros} onAbrirPerfil={onAbrirPerfil} />
     </View>
   );
 }
 
-function ListaCasos({ pestania, onAbrirPerfil }) {
-  const cargar = useCallback(() => listarHistorial({ rol: pestania.rol }), [pestania.rol]);
+function ListaCasos({ pestania, filtros, onAbrirPerfil }) {
+  const { desde, hasta, tipo } = filtros;
+  const cargar = useCallback(
+    () => listarHistorial({ rol: pestania.rol, desde, hasta, tipo }),
+    [pestania.rol, desde, hasta, tipo]
+  );
   const { datos, cargando, refrescando, error, recargar, refrescar } = useListado(cargar);
+  const filtrado = hayFiltros(filtros);
 
   if (cargando) return <EstadoCargando mensaje="Cargando historial…" />;
   if (error) return <EstadoError mensaje={error} onReintentar={recargar} />;
@@ -58,7 +66,13 @@ function ListaCasos({ pestania, onAbrirPerfil }) {
       refreshing={refrescando}
       onRefresh={refrescar}
       contentContainerStyle={datos.length === 0 ? styles.vacio : styles.lista}
-      ListEmptyComponent={<EstadoVacio titulo={pestania.vacio} mensaje={pestania.vacioMensaje} />}
+      ListEmptyComponent={
+        filtrado ? (
+          <EstadoVacio titulo="No hay casos con estos filtros" mensaje="Probá con otro rango de fechas o tipo." />
+        ) : (
+          <EstadoVacio titulo={pestania.vacio} mensaje={pestania.vacioMensaje} />
+        )
+      }
       renderItem={({ item }) => <TarjetaCaso caso={item} onAbrirPerfil={onAbrirPerfil} />}
     />
   );

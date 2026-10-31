@@ -5,7 +5,7 @@ import { formatearFecha } from '../utils/fechas';
 
 // Un caso resuelto del historial (devolví o recuperé).
 export default function TarjetaCaso({ caso, onAbrirPerfil }) {
-  const { rol, titulo, categoria, fechaDevolucion, fotoPrincipal, contraparte } = caso;
+  const { rol, titulo, tipo, categoria, fechaDevolucion, fotoPrincipal, contraparte } = caso;
 
   return (
     <View style={styles.tarjeta}>
@@ -19,7 +19,7 @@ export default function TarjetaCaso({ caso, onAbrirPerfil }) {
       <View style={styles.info}>
         <Text style={styles.titulo} numberOfLines={2}>{titulo}</Text>
         <Text style={styles.detalle}>
-          {CATEGORIAS[categoria]} · {formatearFecha(fechaDevolucion)}
+          {tipo === 'PERDIDO' ? 'Perdido' : 'Encontrado'} · {CATEGORIAS[categoria]} · {formatearFecha(fechaDevolucion)}
         </Text>
         <Text style={styles.contraparte}>
           {rol === 'DEVOLVI' ? 'Se lo devolviste a ' : 'Te lo devolvió '}
