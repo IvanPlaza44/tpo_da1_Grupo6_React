@@ -1,10 +1,11 @@
-import { FlatList, StyleSheet, Text, View } from 'react-native';
-import { COLORS } from '../config';
+import { FlatList, StyleSheet } from 'react-native';
 import { listarSeguidas } from '../services/seguidas';
 import useListado from '../hooks/useListado';
 import { EstadoCargando, EstadoError, EstadoVacio } from '../components/EstadoPantalla';
+import TarjetaSeguida from '../components/TarjetaSeguida';
 
-export default function SeguidasScreen() {
+// onAbrirPublicacion(id): lo conecta la navegación para ir al detalle de la publicación.
+export default function SeguidasScreen({ onAbrirPublicacion }) {
   const { datos, cargando, refrescando, error, recargar, refrescar } = useListado(listarSeguidas);
 
   if (cargando) return <EstadoCargando mensaje="Cargando publicaciones seguidas…" />;
@@ -24,9 +25,7 @@ export default function SeguidasScreen() {
         />
       }
       renderItem={({ item }) => (
-        <View style={styles.item}>
-          <Text style={styles.titulo}>{item.titulo}</Text>
-        </View>
+        <TarjetaSeguida publicacion={item} onPress={() => onAbrirPublicacion?.(item.id)} />
       )}
     />
   );
@@ -35,6 +34,4 @@ export default function SeguidasScreen() {
 const styles = StyleSheet.create({
   lista: { padding: 16, gap: 8 },
   vacio: { flexGrow: 1 },
-  item: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, padding: 12 },
-  titulo: { fontSize: 16, color: COLORS.text },
 });

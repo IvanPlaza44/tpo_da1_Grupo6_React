@@ -6,6 +6,7 @@ import { COLORS } from './config';
 import MisAlertasScreen from './screens/MisAlertasScreen';
 import SeguidasScreen from './screens/SeguidasScreen';
 import BotonGuardarAlerta from './components/BotonGuardarAlerta';
+import BotonSeguir from './components/BotonSeguir';
 
 // PROVISORIO: entrada para probar alertas y seguidas hasta que exista la navegación real.
 // Borrar cuando se integre el navigator definitivo.
@@ -29,6 +30,19 @@ function PruebaGuardarAlerta() {
   );
 }
 
+// Reemplaza al detalle real (lo hace otro integrante) para probar la navegación y BotonSeguir.
+function PruebaDetalle({ publicacionId, onVolver }) {
+  return (
+    <View style={styles.prueba}>
+      <Pressable onPress={onVolver}>
+        <Text style={styles.volver}>‹ Volver</Text>
+      </Pressable>
+      <Text style={styles.pruebaTexto}>Detalle provisorio de la publicación #{publicacionId}</Text>
+      <BotonSeguir publicacionId={publicacionId} siguiendo />
+    </View>
+  );
+}
+
 const PANTALLAS = [
   { clave: 'alertas', titulo: 'Mis alertas', Componente: MisAlertasScreen },
   { clave: 'seguidas', titulo: 'Seguidas', Componente: SeguidasScreen },
@@ -37,7 +51,13 @@ const PANTALLAS = [
 
 export default function App() {
   const [actual, setActual] = useState(PANTALLAS[0].clave);
+  const [detalleId, setDetalleId] = useState(null);
   const { Componente } = PANTALLAS.find((p) => p.clave === actual);
+
+  const irA = (clave) => {
+    setDetalleId(null);
+    setActual(clave);
+  };
 
   return (
     <SafeAreaProvider>
@@ -47,7 +67,7 @@ export default function App() {
             <Pressable
               key={p.clave}
               style={[styles.opcion, p.clave === actual && styles.opcionActiva]}
-              onPress={() => setActual(p.clave)}
+              onPress={() => irA(p.clave)}
             >
               <Text style={[styles.opcionTexto, p.clave === actual && styles.opcionTextoActiva]}>
                 {p.titulo}
@@ -55,7 +75,11 @@ export default function App() {
             </Pressable>
           ))}
         </View>
-        <Componente key={actual} />
+        {detalleId ? (
+          <PruebaDetalle publicacionId={detalleId} onVolver={() => setDetalleId(null)} />
+        ) : (
+          <Componente key={actual} onAbrirPublicacion={setDetalleId} />
+        )}
         <StatusBar style="auto" />
       </SafeAreaView>
     </SafeAreaProvider>
@@ -72,4 +96,5 @@ const styles = StyleSheet.create({
   prueba: { flex: 1, padding: 16, gap: 12 },
   pruebaTexto: { color: COLORS.muted },
   pruebaCodigo: { fontFamily: 'monospace', fontSize: 12, color: COLORS.text },
+  volver: { color: COLORS.primary, fontSize: 16 },
 });

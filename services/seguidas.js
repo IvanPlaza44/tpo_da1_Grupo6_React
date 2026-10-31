@@ -60,22 +60,41 @@ export const listarSeguidas = async () => {
   return data;
 };
 
+// Las que se dejaron de seguir, para que el mock las recupere si se vuelven a seguir.
+const mockDejadas = new Map();
+
+const quitarDelMock = (publicacionId) => {
+  const publicacion = mockSeguidas.find((p) => p.id === publicacionId);
+  if (publicacion) mockDejadas.set(publicacionId, publicacion);
+  mockSeguidas = mockSeguidas.filter((p) => p.id !== publicacionId);
+};
+
+const agregarAlMock = (publicacionId) => {
+  const publicacion = mockDejadas.get(publicacionId);
+  if (publicacion && !mockSeguidas.some((p) => p.id === publicacionId)) {
+    mockSeguidas = [...mockSeguidas, publicacion];
+    mockDejadas.delete(publicacionId);
+  }
+};
+
 export const seguirPublicacion = async (publicacionId) => {
   if (SOLO_MOCKS) {
     await demora();
+    agregarAlMock(publicacionId);
     return;
   }
   await api.post(`/api/publicaciones/${publicacionId}/seguir`);
+  agregarAlMock(publicacionId);
 };
 
 export const dejarDeSeguir = async (publicacionId) => {
   if (SOLO_MOCKS) {
     await demora();
-    mockSeguidas = mockSeguidas.filter((p) => p.id !== publicacionId);
+    quitarDelMock(publicacionId);
     return;
   }
   await api.delete(`/api/publicaciones/${publicacionId}/seguir`);
-  mockSeguidas = mockSeguidas.filter((p) => p.id !== publicacionId);
+  quitarDelMock(publicacionId);
 };
 
 // Apaga el indicador de cambio de estado una vez que la persona vio la publicación.

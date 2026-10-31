@@ -14,6 +14,12 @@ export const TIPOS = {
   ENCONTRADO: 'Encontré algo',
 };
 
+export const ESTADOS_PUBLICACION = {
+  ABIERTA: 'Abierta',
+  EN_RECLAMO: 'En reclamo',
+  RESUELTA: 'Resuelta',
+};
+
 export const RANGOS_FECHA = {
   HOY: 'Hoy',
   ULTIMOS_3_DIAS: 'Últimos 3 días',
