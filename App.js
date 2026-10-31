@@ -1,8 +1,16 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { COLORS } from './config';
+import { AuthProvider } from './context/AuthContext';
+import { useAuth } from './hooks/useAuth';
+import LoginScreen from './screens/LoginScreen';
+import RegisterScreen from './screens/RegisterScreen';
+import ForgotPasswordScreen from './screens/ForgotPasswordScreen';
+import SettingsScreen from './screens/SettingsScreen';
 import MisAlertasScreen from './screens/MisAlertasScreen';
 import SeguidasScreen from './screens/SeguidasScreen';
 import HistorialScreen from './screens/HistorialScreen';
@@ -12,8 +20,9 @@ import Badge from './components/Badge';
 import ListaAgradecimientos from './components/ListaAgradecimientos';
 import useNovedades from './hooks/useNovedades';
 
+const Stack = createNativeStackNavigator();
+
 // PROVISORIO: entrada para probar alertas y seguidas hasta que exista la navegación real.
-// Borrar cuando se integre el navigator definitivo.
 const CRITERIOS_PRUEBA = {
   tipo: 'PERDIDO',
   categoria: 'ELECTRONICA',
@@ -34,7 +43,6 @@ function PruebaGuardarAlerta() {
   );
 }
 
-// Reemplaza al detalle real (lo hace otro integrante) para probar la navegación y BotonSeguir.
 function PruebaDetalle({ publicacionId, onVolver }) {
   return (
     <View style={styles.prueba}>
@@ -52,9 +60,9 @@ const PANTALLAS = [
   { clave: 'seguidas', titulo: 'Seguidas', Componente: SeguidasScreen },
   { clave: 'guardar', titulo: 'Probar guardar', Componente: PruebaGuardarAlerta },
   { clave: 'historial', titulo: 'Historial', Componente: HistorialScreen },
+  { clave: 'configuracion', titulo: 'Configuración', Componente: SettingsScreen },
 ];
 
-// Reemplaza al perfil público real (lo hace otro integrante) para probar ListaAgradecimientos.
 function PruebaPerfil({ usuarioId, onVolver }) {
   return (
     <ScrollView contentContainerStyle={styles.pruebaScroll}>
@@ -67,7 +75,8 @@ function PruebaPerfil({ usuarioId, onVolver }) {
   );
 }
 
-export default function App() {
+function AuthenticatedApp() {
+  const { user, logout } = useAuth();
   const [actual, setActual] = useState(PANTALLAS[0].clave);
   const [detalleId, setDetalleId] = useState(null);
   const [perfilId, setPerfilId] = useState(null);
@@ -87,42 +96,104 @@ export default function App() {
   };
 
   return (
-    <SafeAreaProvider>
-      <SafeAreaView style={styles.container}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.selector}>
-          {PANTALLAS.map((p) => (
-            <Pressable
-              key={p.clave}
-              style={[styles.opcion, p.clave === actual && styles.opcionActiva]}
-              onPress={() => irA(p.clave)}
-            >
-              <Text style={[styles.opcionTexto, p.clave === actual && styles.opcionTextoActiva]}>
-                {p.titulo}
-              </Text>
-              {novedades[p.clave] > 0 ? <Badge texto={String(novedades[p.clave])} /> : null}
-            </Pressable>
-          ))}
-        </ScrollView>
-        {detalleId ? (
-          <PruebaDetalle publicacionId={detalleId} onVolver={volverDelDetalle} />
-        ) : perfilId ? (
-          <PruebaPerfil usuarioId={perfilId} onVolver={() => setPerfilId(null)} />
-        ) : (
-          <Componente
-            key={actual}
-            onAbrirPublicacion={setDetalleId}
-            onAbrirPerfil={setPerfilId}
-            onNovedadesVistas={novedades.recargar}
+    <SafeAreaView style={styles.container}>
+      <View style={styles.userBar}>
+        <Text style={styles.userEmail} numberOfLines={1}>
+          {user?.email || 'Sesión activa'}
+        </Text>
+        <Pressable onPress={logout} style={styles.logoutBtn}>
+          <Text style={styles.logoutTexto}>Cerrar sesión</Text>
+        </Pressable>
+      </View>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.selector}>
+        {PANTALLAS.map((p) => (
+          <Pressable
+            key={p.clave}
+            style={[styles.opcion, p.clave === actual && styles.opcionActiva]}
+            onPress={() => irA(p.clave)}
+          >
+            <Text style={[styles.opcionTexto, p.clave === actual && styles.opcionTextoActiva]}>
+              {p.titulo}
+            </Text>
+            {novedades[p.clave] > 0 ? <Badge texto={String(novedades[p.clave])} /> : null}
+          </Pressable>
+        ))}
+      </ScrollView>
+
+      {detalleId ? (
+        <PruebaDetalle publicacionId={detalleId} onVolver={volverDelDetalle} />
+      ) : perfilId ? (
+        <PruebaPerfil usuarioId={perfilId} onVolver={() => setPerfilId(null)} />
+      ) : (
+        <Componente
+          key={actual}
+          onAbrirPublicacion={setDetalleId}
+          onAbrirPerfil={setPerfilId}
+          onNovedadesVistas={novedades.recargar}
+        />
+      )}
+      <StatusBar style="auto" />
+    </SafeAreaView>
+  );
+}
+
+function RootNavigator() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <View style={styles.loader}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
+  }
+
+  if (!user) {
+    return (
+      <NavigationContainer>
+        <Stack.Navigator initialRouteName="Login">
+          <Stack.Screen name="Login" component={LoginScreen} options={{ title: 'Iniciar Sesión' }} />
+          <Stack.Screen name="Register" component={RegisterScreen} options={{ title: 'Crear Cuenta' }} />
+          <Stack.Screen
+            name="ForgotPassword"
+            component={ForgotPasswordScreen}
+            options={{ title: 'Recuperar Contraseña' }}
           />
-        )}
-        <StatusBar style="auto" />
-      </SafeAreaView>
+        </Stack.Navigator>
+      </NavigationContainer>
+    );
+  }
+
+  return <AuthenticatedApp />;
+}
+
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <AuthProvider>
+        <RootNavigator />
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
+  loader: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background },
+  userBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: '#f9fafb',
+    borderBottomWidth: 1,
+    borderColor: COLORS.border,
+  },
+  userEmail: { flex: 1, fontSize: 13, color: COLORS.text, fontWeight: '500', marginRight: 8 },
+  logoutBtn: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 6, backgroundColor: '#fee2e2' },
+  logoutTexto: { color: COLORS.danger, fontSize: 12, fontWeight: '600' },
   selector: { flexGrow: 0, borderBottomWidth: 1, borderColor: COLORS.border },
   opcion: { paddingVertical: 12, paddingHorizontal: 14, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 },
   opcionActiva: { borderBottomWidth: 2, borderColor: COLORS.primary },
