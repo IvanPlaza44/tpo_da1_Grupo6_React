@@ -43,8 +43,23 @@ let mockAlertas = [
     fechaDesde: null,
     fechaHasta: null,
   },
+  {
+    // Como responde hoy el backend real: hay novedades pero sin la cantidad.
+    id: 3,
+    nombre: 'Documentos en octubre',
+    hayNovedades: true,
+    cantidadNovedades: null,
+    activa: true,
+    tipo: 'PERDIDO',
+    categoria: 'DOCUMENTOS',
+    palabrasClave: null,
+    barrio: null,
+    rangoFecha: 'RANGO',
+    fechaDesde: '2026-10-01',
+    fechaHasta: '2026-10-31',
+  },
 ];
-let mockSiguienteId = 3;
+let mockSiguienteId = 4;
 
 // Pausa simulada sobre alertas reales mientras PENDIENTE.pausar sea true. Se pierde al recargar.
 const pausadas = new Set();

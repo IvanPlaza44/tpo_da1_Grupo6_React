@@ -1,8 +1,8 @@
-import { FlatList, StyleSheet, Text, View } from 'react-native';
-import { COLORS } from '../config';
+import { FlatList, StyleSheet } from 'react-native';
 import { listarAlertas } from '../services/alertas';
 import useListado from '../hooks/useListado';
 import { EstadoCargando, EstadoError, EstadoVacio } from '../components/EstadoPantalla';
+import TarjetaAlerta from '../components/TarjetaAlerta';
 
 export default function MisAlertasScreen() {
   const { datos, cargando, refrescando, error, recargar, refrescar } = useListado(listarAlertas);
@@ -23,11 +23,7 @@ export default function MisAlertasScreen() {
           mensaje="Guardá una búsqueda como alerta para enterarte cuando aparezca algo que coincida."
         />
       }
-      renderItem={({ item }) => (
-        <View style={styles.item}>
-          <Text style={styles.nombre}>{item.nombre}</Text>
-        </View>
-      )}
+      renderItem={({ item }) => <TarjetaAlerta alerta={item} />}
     />
   );
 }
@@ -35,6 +31,4 @@ export default function MisAlertasScreen() {
 const styles = StyleSheet.create({
   lista: { padding: 16, gap: 8 },
   vacio: { flexGrow: 1 },
-  item: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, padding: 12 },
-  nombre: { fontSize: 16, color: COLORS.text },
 });

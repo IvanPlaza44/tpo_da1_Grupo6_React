@@ -3,15 +3,7 @@ import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View 
 import { COLORS } from '../config';
 import { crearAlerta } from '../services/alertas';
 import { getErrorMessage } from '../services/api';
-
-const CATEGORIAS = {
-  DOCUMENTOS: 'Documentos',
-  LLAVES: 'Llaves',
-  ELECTRONICA: 'Electrónica',
-  MASCOTAS: 'Mascotas',
-  ROPA: 'Ropa',
-  OTROS: 'Otros',
-};
+import { CATEGORIAS } from '../utils/etiquetas';
 
 const nombreSugerido = ({ tipo, categoria, palabrasClave, barrio }) => {
   const que = palabrasClave || CATEGORIAS[categoria] || 'Búsqueda';
