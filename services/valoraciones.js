@@ -14,11 +14,11 @@ import {
 // EXPO_PUBLIC_MOCKS=true simula todo (sirve sin backend ni login).
 // PENDIENTE marca lo que el backend todavía no tiene: queda simulado aunque se use
 // el backend real. Pasar a false cuando el endpoint exista.
-// El plazo de 7 días tampoco lo valida el backend todavía: con el backend real la app
-// se guía por `puedeValorar` del historial.
+// El plazo de 7 días lo valida el backend (400 si venció); la app además se guía por
+// `puedeValorar` del historial para no ofrecer la acción.
 const SOLO_MOCKS = ['true', 'vacio', 'error'].includes(process.env.EXPO_PUBLIC_MOCKS);
 const PENDIENTE = {
-  agradecimientos: true, // POST /agradecimientos y GET /usuarios/{id}/agradecimientos
+  agradecimientos: false, // POST /agradecimientos y GET /usuarios/{id}/agradecimientos
 };
 
 const textoOpcional = (texto) => texto?.trim() || null;

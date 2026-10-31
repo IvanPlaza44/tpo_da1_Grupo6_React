@@ -10,7 +10,7 @@ import { demora, obtenerCasos } from './mocks/historialMock';
 const MODO_MOCK = process.env.EXPO_PUBLIC_MOCKS;
 const SOLO_MOCKS = ['true', 'vacio', 'error'].includes(MODO_MOCK);
 const PENDIENTE = {
-  listar: true, // GET /usuarios/me/historial
+  listar: false, // GET /usuarios/me/historial
 };
 
 const filtrar = (casos, { rol, desde, hasta, tipo, categoria }) =>
