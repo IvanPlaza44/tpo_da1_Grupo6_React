@@ -71,6 +71,7 @@ export const listarAlertas = async () => {
 export const crearAlerta = async (criterios) => {
   if (SOLO_MOCKS) {
     await demora();
+    if (MODO_MOCK === 'error') throw new Error('Error simulado');
     const nueva = {
       tipo: null,
       categoria: null,
