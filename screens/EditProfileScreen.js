@@ -13,12 +13,15 @@ import {
   View,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as LocalAuthentication from 'expo-local-authentication';
 import { COLORS } from '../config';
+import { useAuth } from '../hooks/useAuth';
 import { useProfile } from '../hooks/useProfile';
 import InsigniasUsuario from '../components/InsigniasUsuario';
 import { calcularResumenReputacion, formatearAntiguedad } from '../utils/insignias';
 
 export const EditProfileScreen = ({ onAbrirPerfil }) => {
+  const { user, biometricEnabled, toggleBiometric, logout } = useAuth();
   const {
     profile,
     loadingProfile,
@@ -35,6 +38,10 @@ export const EditProfileScreen = ({ onAbrirPerfil }) => {
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
+  // Estado de soporte y actualización de biometría
+  const [isBiometricSupported, setIsBiometricSupported] = useState(false);
+  const [updatingBiometric, setUpdatingBiometric] = useState(false);
+
   useEffect(() => {
     if (profile) {
       setNombre(profile.nombre || '');
@@ -44,6 +51,21 @@ export const EditProfileScreen = ({ onAbrirPerfil }) => {
       setFotoPreview(profile.fotoPerfil || null);
     }
   }, [profile]);
+
+  useEffect(() => {
+    const checkHardware = async () => {
+      try {
+        const hasHardware = await LocalAuthentication.hasHardwareAsync();
+        const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+        setIsBiometricSupported(hasHardware && isEnrolled);
+      } catch (error) {
+        console.error('Error al verificar soporte biométrico:', error);
+        setIsBiometricSupported(false);
+      }
+    };
+
+    checkHardware();
+  }, []);
 
   const handlePickImage = async () => {
     try {
@@ -108,6 +130,33 @@ export const EditProfileScreen = ({ onAbrirPerfil }) => {
     }
   };
 
+  const handleToggleBiometric = async (nextValue) => {
+    if (!isBiometricSupported && nextValue) {
+      Alert.alert(
+        'Biometría no disponible',
+        'Tu dispositivo no cuenta con huella o reconocimiento facial configurado.'
+      );
+      return;
+    }
+
+    try {
+      setUpdatingBiometric(true);
+      const success = await toggleBiometric(nextValue);
+      if (success) {
+        Alert.alert(
+          nextValue ? 'Biometría activada' : 'Biometría desactivada',
+          nextValue
+            ? 'Ahora podrás desbloquear tu sesión usando tu huella o rostro.'
+            : 'Se desactivó el desbloqueo biométrico.'
+        );
+      }
+    } catch (error) {
+      Alert.alert('Error', 'No se pudo actualizar la configuración de biometría.');
+    } finally {
+      setUpdatingBiometric(false);
+    }
+  };
+
   if (loadingProfile && !profile) {
     return (
       <View style={styles.loader}>
@@ -123,7 +172,7 @@ export const EditProfileScreen = ({ onAbrirPerfil }) => {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Mi Perfil</Text>
+      <Text style={styles.title}>Mi Perfil y Configuración</Text>
 
       <View style={styles.avatarSection}>
         {fotoPreview ? (
@@ -131,7 +180,7 @@ export const EditProfileScreen = ({ onAbrirPerfil }) => {
         ) : (
           <View style={[styles.avatar, styles.avatarPlaceholder]}>
             <Text style={styles.avatarInitial}>
-              {(nombre || profile?.email || 'U').charAt(0).toUpperCase()}
+              {(nombre || profile?.email || user?.email || 'U').charAt(0).toUpperCase()}
             </Text>
           </View>
         )}
@@ -146,6 +195,10 @@ export const EditProfileScreen = ({ onAbrirPerfil }) => {
           </Text>
         </Pressable>
 
+        {profile?.email || user?.email ? (
+          <Text style={styles.emailText}>{profile?.email || user?.email}</Text>
+        ) : null}
+
         {profile?.fechaAlta ? (
           <Text style={styles.antiguedadText}>
             {formatearAntiguedad(profile.fechaAlta)}
@@ -154,6 +207,8 @@ export const EditProfileScreen = ({ onAbrirPerfil }) => {
       </View>
 
       <View style={styles.section}>
+        <Text style={styles.sectionHeader}>Datos Personales</Text>
+
         <Text style={styles.label}>Nombre visible</Text>
         <TextInput
           style={styles.input}
@@ -180,10 +235,12 @@ export const EditProfileScreen = ({ onAbrirPerfil }) => {
         />
       </View>
 
-      <View style={styles.privacyCard}>
-        <View style={styles.privacyTextWrap}>
-          <Text style={styles.privacyTitle}>Mostrar teléfono al aceptar un reclamo</Text>
-          <Text style={styles.privacyDescription}>
+      <Text style={styles.sectionHeader}>Privacidad y Seguridad</Text>
+
+      <View style={styles.toggleCard}>
+        <View style={styles.toggleTextWrap}>
+          <Text style={styles.toggleTitle}>Mostrar teléfono al aceptar un reclamo</Text>
+          <Text style={styles.toggleDescription}>
             {telefonoVisible
               ? 'Tu teléfono será visible para la otra parte cuando se acepte un reclamo.'
               : 'Modo privado: no se compartirá tu teléfono y te comunicarás solo por la app.'}
@@ -194,6 +251,24 @@ export const EditProfileScreen = ({ onAbrirPerfil }) => {
           onValueChange={setTelefonoVisible}
           trackColor={{ false: '#d1d5db', true: '#93c5fd' }}
           thumbColor={telefonoVisible ? COLORS.primary : '#f3f4f6'}
+        />
+      </View>
+
+      <View style={styles.toggleCard}>
+        <View style={styles.toggleTextWrap}>
+          <Text style={styles.toggleTitle}>Desbloqueo con Huella / Rostro</Text>
+          <Text style={styles.toggleDescription}>
+            {isBiometricSupported
+              ? 'Usá la biometría del dispositivo para recuperar tu sesión guardada en forma segura.'
+              : 'No se detectó huella o rostro configurado en este dispositivo.'}
+          </Text>
+        </View>
+        <Switch
+          value={biometricEnabled}
+          onValueChange={handleToggleBiometric}
+          disabled={updatingBiometric}
+          trackColor={{ false: '#d1d5db', true: '#93c5fd' }}
+          thumbColor={biometricEnabled ? COLORS.primary : '#f3f4f6'}
         />
       </View>
 
@@ -241,6 +316,10 @@ export const EditProfileScreen = ({ onAbrirPerfil }) => {
       <Pressable onPress={refreshProfile} style={styles.refreshBtn}>
         <Text style={styles.refreshText}>Actualizar datos del servidor</Text>
       </Pressable>
+
+      <Pressable onPress={logout} style={styles.logoutCardBtn}>
+        <Text style={styles.logoutCardText}>Cerrar sesión</Text>
+      </Pressable>
     </ScrollView>
   );
 };
@@ -249,7 +328,7 @@ const styles = StyleSheet.create({
   container: {
     padding: 20,
     backgroundColor: COLORS.background,
-    gap: 16,
+    gap: 14,
   },
   loader: {
     flex: 1,
@@ -263,7 +342,7 @@ const styles = StyleSheet.create({
   },
   avatarSection: {
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
     paddingVertical: 8,
   },
   avatar: {
@@ -289,11 +368,17 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: COLORS.primary,
+    marginTop: 2,
   },
   changePhotoText: {
     color: COLORS.primary,
     fontWeight: '600',
     fontSize: 13,
+  },
+  emailText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: COLORS.text,
   },
   antiguedadText: {
     fontSize: 12,
@@ -302,11 +387,17 @@ const styles = StyleSheet.create({
   section: {
     gap: 6,
   },
+  sectionHeader: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginTop: 4,
+  },
   label: {
     fontSize: 13,
     fontWeight: '600',
     color: COLORS.text,
-    marginTop: 6,
+    marginTop: 4,
   },
   input: {
     height: 46,
@@ -316,7 +407,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     backgroundColor: '#fff',
   },
-  privacyCard: {
+  toggleCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -326,17 +417,17 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     backgroundColor: '#f9fafb',
   },
-  privacyTextWrap: {
+  toggleTextWrap: {
     flex: 1,
     paddingRight: 12,
   },
-  privacyTitle: {
+  toggleTitle: {
     fontSize: 14,
     fontWeight: '600',
     color: COLORS.text,
     marginBottom: 4,
   },
-  privacyDescription: {
+  toggleDescription: {
     fontSize: 12,
     color: COLORS.muted,
     lineHeight: 17,
@@ -345,7 +436,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   statsCard: {
-    marginTop: 8,
+    marginTop: 6,
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
@@ -391,11 +482,24 @@ const styles = StyleSheet.create({
   },
   refreshBtn: {
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 6,
   },
   refreshText: {
     color: COLORS.muted,
     fontSize: 12,
+  },
+  logoutCardBtn: {
+    marginTop: 4,
+    marginBottom: 12,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#fee2e2',
+    alignItems: 'center',
+  },
+  logoutCardText: {
+    color: COLORS.danger,
+    fontWeight: 'bold',
+    fontSize: 14,
   },
 });
 

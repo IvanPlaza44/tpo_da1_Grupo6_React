@@ -11,7 +11,6 @@ import { useAuth } from './hooks/useAuth';
 import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
 import ForgotPasswordScreen from './screens/ForgotPasswordScreen';
-import SettingsScreen from './screens/SettingsScreen';
 import EditProfileScreen from './screens/EditProfileScreen';
 import PublicProfileScreen from './screens/PublicProfileScreen';
 import MisAlertasScreen from './screens/MisAlertasScreen';
@@ -58,16 +57,14 @@ function PruebaDetalle({ publicacionId, onVolver }) {
 }
 
 const PANTALLAS = [
-  { clave: 'perfil', titulo: 'Mi Perfil', Componente: EditProfileScreen },
   { clave: 'alertas', titulo: 'Mis alertas', Componente: MisAlertasScreen },
   { clave: 'seguidas', titulo: 'Seguidas', Componente: SeguidasScreen },
   { clave: 'guardar', titulo: 'Probar guardar', Componente: PruebaGuardarAlerta },
   { clave: 'historial', titulo: 'Historial', Componente: HistorialScreen },
-  { clave: 'configuracion', titulo: 'Configuración', Componente: SettingsScreen },
+  { clave: 'perfil', titulo: 'Mi Perfil', Componente: EditProfileScreen },
 ];
 
 function AuthenticatedApp() {
-  const { user, logout } = useAuth();
   const [actual, setActual] = useState(PANTALLAS[0].clave);
   const [detalleId, setDetalleId] = useState(null);
   const [perfilId, setPerfilId] = useState(null);
@@ -88,15 +85,6 @@ function AuthenticatedApp() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.userBar}>
-        <Text style={styles.userEmail} numberOfLines={1}>
-          {user?.email || 'Sesión activa'}
-        </Text>
-        <Pressable onPress={logout} style={styles.logoutBtn}>
-          <Text style={styles.logoutTexto}>Cerrar sesión</Text>
-        </Pressable>
-      </View>
-
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.selector}>
         {PANTALLAS.map((p) => (
           <Pressable
@@ -174,19 +162,6 @@ export default function App() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   loader: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background },
-  userBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    backgroundColor: '#f9fafb',
-    borderBottomWidth: 1,
-    borderColor: COLORS.border,
-  },
-  userEmail: { flex: 1, fontSize: 13, color: COLORS.text, fontWeight: '500', marginRight: 8 },
-  logoutBtn: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 6, backgroundColor: '#fee2e2' },
-  logoutTexto: { color: COLORS.danger, fontSize: 12, fontWeight: '600' },
   selector: { flexGrow: 0, borderBottomWidth: 1, borderColor: COLORS.border },
   opcion: { paddingVertical: 12, paddingHorizontal: 14, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 },
   opcionActiva: { borderBottomWidth: 2, borderColor: COLORS.primary },
