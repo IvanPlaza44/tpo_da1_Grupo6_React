@@ -12,8 +12,8 @@ import api from './api';
 const MODO_MOCK = process.env.EXPO_PUBLIC_MOCKS;
 const SOLO_MOCKS = ['true', 'vacio', 'error'].includes(MODO_MOCK);
 const PENDIENTE = {
-  listar: true, // GET /reclamos/enviados y /reclamos/recibidos
-  foto: true, // POST /reclamos/{id}/foto
+  listar: false, // GET /reclamos/enviados y /reclamos/recibidos
+  foto: false, // POST /reclamos/{id}/foto
 };
 
 export const MAX_INTENTOS = 3;
@@ -32,7 +32,7 @@ const aIsoLocal = (d) =>
 const haceHoras = (horas) => aIsoLocal(new Date(Date.now() - horas * 3600000));
 const sumarHoras = (iso, horas) => aIsoLocal(new Date(new Date(iso).getTime() + horas * 3600000));
 
-// Misma forma que tendrá ReclamoResponseDto en el backend.
+// Misma forma que ReclamoResponseDto del backend.
 // respuestaVerificacion solo la recibe el publicador (en "recibidos").
 let mockEnviados = [
   {
@@ -119,6 +119,15 @@ let mockRecibidos = [
 ];
 let mockSiguienteId = 200;
 
+// Datos mínimos de una publicación que necesita el formulario de reclamo.
+// En la app real salen de GET /api/publicaciones/{id} (PublicacionDetalleDto).
+const mockPublicaciones = {
+  10: { id: 10, titulo: 'DNI encontrado en plaza', tipo: 'ENCONTRADO', estado: 'EN_RECLAMO', preguntaVerificacion: '¿Qué apellido figura en el DNI?', esPropia: false, miReclamoEstado: 'PENDIENTE' },
+  20: { id: 20, titulo: 'Billetera marrón', tipo: 'ENCONTRADO', estado: 'EN_RECLAMO', preguntaVerificacion: '¿Qué tiene pegado adentro?', esPropia: true, miReclamoEstado: null },
+  30: { id: 30, titulo: 'Llavero con llaves en Palermo', tipo: 'ENCONTRADO', estado: 'ABIERTA', preguntaVerificacion: '¿De qué color es el llavero?', esPropia: false, miReclamoEstado: null },
+  31: { id: 31, titulo: 'Perro perdido: Rocco', tipo: 'PERDIDO', estado: 'ABIERTA', preguntaVerificacion: null, esPropia: false, miReclamoEstado: null },
+};
+
 // Campos que calcula el backend: vencimiento a las 48 h y estado VENCIDO.
 const conDerivados = (reclamo) => {
   const fechaVencimiento = reclamo.fechaVencimiento ?? sumarHoras(reclamo.fechaCreacion, HORAS_VENCIMIENTO);
@@ -146,10 +155,25 @@ export const listarReclamosRecibidos = async () => {
   return data;
 };
 
+// Lo que el formulario necesita saber de la publicación: tipo, título, pregunta,
+// si es propia y si ya tengo un reclamo (esPropia y miReclamoEstado los calcula el backend).
+export const obtenerPublicacionParaReclamo = async (publicacionId) => {
+  if (SOLO_MOCKS) {
+    await demora();
+    if (MODO_MOCK === 'error') throw new Error('Error simulado');
+    const publicacion = mockPublicaciones[publicacionId];
+    if (!publicacion) throw errorMock(404, 'Publicación no encontrada');
+    return publicacion;
+  }
+  const { data } = await api.get(`/api/publicaciones/${publicacionId}`);
+  return data;
+};
+
 // Crea el reclamo. Campos según el caso:
 // - "Es mío":      { respuestaVerificacion (obligatoria), mensaje?, foto? }
 // - "Lo encontré": { barrio (obligatorio), foto (obligatoria), mensaje? }
 // publicacion: { id, titulo, tipo }. foto: asset de expo-image-picker (o null).
+// Si el reclamo se crea pero la foto falla, devuelve el reclamo con errorFoto: true.
 export const crearReclamo = async (publicacion, { mensaje, respuestaVerificacion, barrio, foto }) => {
   const body = {
     mensaje: mensaje?.trim() || null,
@@ -177,12 +201,21 @@ export const crearReclamo = async (publicacion, { mensaje, respuestaVerificacion
       fechaCreacion: aIsoLocal(new Date()),
     };
     mockEnviados = [nuevo, ...mockEnviados];
+    // Para que el formulario lo vea como "ya reclamada" si se vuelve a abrir.
+    if (mockPublicaciones[publicacion.id]) {
+      mockPublicaciones[publicacion.id] = { ...mockPublicaciones[publicacion.id], miReclamoEstado: 'PENDIENTE' };
+    }
     return conDerivados(nuevo);
   }
 
   const { data: reclamo } = await api.post(`/api/publicaciones/${publicacion.id}/reclamos`, body);
-  if (foto) return subirFotoReclamo(reclamo.id, foto);
-  return reclamo;
+  if (!foto) return reclamo;
+  // El reclamo ya quedó creado: si falla la foto no se pierde, se avisa con errorFoto.
+  try {
+    return await subirFotoReclamo(reclamo.id, foto);
+  } catch {
+    return { ...reclamo, errorFoto: true };
+  }
 };
 
 // Sube la foto en multipart/form-data bajo el campo "archivo", igual que la foto de perfil.
