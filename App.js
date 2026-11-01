@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Button, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -16,6 +16,8 @@ import PublicProfileScreen from './screens/PublicProfileScreen';
 import MisAlertasScreen from './screens/MisAlertasScreen';
 import SeguidasScreen from './screens/SeguidasScreen';
 import HistorialScreen from './screens/HistorialScreen';
+import MisReclamosScreen from './screens/MisReclamosScreen';
+import ReclamarScreen from './screens/ReclamarScreen';
 import BotonGuardarAlerta from './components/BotonGuardarAlerta';
 import Badge from './components/Badge';
 import BuscarFlow from './screens/BuscarFlow';
@@ -50,14 +52,47 @@ function PruebaGuardarAlerta() {
   );
 }
 
+// PROVISORIO: abre el formulario de reclamo escribiendo un id (sirve para probar con mocks).
+// Sacar antes de la entrega: el camino real es Buscar → Detalle → "Es mío" / "Lo encontré".
+function PruebaReclamo() {
+  const [idTexto, setIdTexto] = useState('');
+  const [abierto, setAbierto] = useState(null);
 
+  if (abierto) {
+    return (
+      <ReclamarScreen
+        publicacionId={abierto}
+        onVolver={() => setAbierto(null)}
+        onEnviado={() => setAbierto(null)}
+      />
+    );
+  }
+
+  return (
+    <View style={styles.prueba}>
+      <Text style={styles.pruebaTexto}>
+        Ingresá el id de una publicación. Con mocks: 30 (Es mío), 31 (Lo encontré), 10 (ya reclamada), 20 (propia).
+      </Text>
+      <TextInput
+        style={styles.pruebaInput}
+        placeholder="Id de la publicación"
+        value={idTexto}
+        onChangeText={setIdTexto}
+        keyboardType="number-pad"
+      />
+      <Button title="Abrir formulario" onPress={() => idTexto && setAbierto(Number(idTexto))} />
+    </View>
+  );
+}
 
 const PANTALLAS = [
-    { clave: 'buscar', titulo: 'Buscar', Componente: BuscarFlow },
+  { clave: 'buscar', titulo: 'Buscar', Componente: BuscarFlow },
   { clave: 'alertas', titulo: 'Mis alertas', Componente: MisAlertasScreen },
   { clave: 'seguidas', titulo: 'Seguidas', Componente: SeguidasScreen },
   { clave: 'guardar', titulo: 'Probar guardar', Componente: PruebaGuardarAlerta },
   { clave: 'historial', titulo: 'Historial', Componente: HistorialScreen },
+  { clave: 'reclamos', titulo: 'Mis reclamos', Componente: MisReclamosScreen },
+  { clave: 'probarReclamo', titulo: 'Probar reclamo', Componente: PruebaReclamo },
   { clave: 'perfil', titulo: 'Mi Perfil', Componente: EditProfileScreen },
   { clave: 'publicar', titulo: 'Publicar', Componente: PublicarScreen },
   { clave: 'mis-publicaciones', titulo: 'Mis publicaciones', Componente: MisPublicacionesScreen },
@@ -67,12 +102,14 @@ function AuthenticatedApp() {
   const [actual, setActual] = useState(PANTALLAS[0].clave);
   const [detalleId, setDetalleId] = useState(null);
   const [perfilId, setPerfilId] = useState(null);
+  const [reclamarId, setReclamarId] = useState(null);
   const novedades = useNovedades();
   const { Componente } = PANTALLAS.find((p) => p.clave === actual);
 
   const irA = (clave) => {
     setDetalleId(null);
     setPerfilId(null);
+    setReclamarId(null);
     setActual(clave);
     novedades.recargar();
   };
@@ -101,7 +138,14 @@ function AuthenticatedApp() {
         ))}
       </ScrollView>
 
-            {perfilId ? (
+      {reclamarId ? (
+        // Formulario de reclamo (Punto 7). "Volver" regresa al detalle; al enviar, va a Mis reclamos.
+        <ReclamarScreen
+          publicacionId={reclamarId}
+          onVolver={() => setReclamarId(null)}
+          onEnviado={() => irA('reclamos')}
+        />
+      ) : perfilId ? (
         <PublicProfileScreen usuarioId={perfilId} onVolver={() => setPerfilId(null)} />
       ) : detalleId ? (
         <DetalleScreen
@@ -109,6 +153,7 @@ function AuthenticatedApp() {
           onVolver={volverDelDetalle}
           onAbrirPerfil={setPerfilId}
           onIrA={irA}
+          onReclamar={(publicacion) => setReclamarId(publicacion.id)}
         />
       ) : (
         <Componente
@@ -119,7 +164,7 @@ function AuthenticatedApp() {
           onIrA={irA}
         />
       )}
-      
+
       <StatusBar style="auto" />
     </SafeAreaView>
   );
@@ -181,5 +226,6 @@ const styles = StyleSheet.create({
   pruebaScroll: { padding: 16, gap: 12 },
   pruebaTexto: { color: COLORS.muted },
   pruebaCodigo: { fontFamily: 'monospace', fontSize: 12, color: COLORS.text },
+  pruebaInput: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 10 },
   volver: { color: COLORS.primary, fontSize: 16 },
 });
