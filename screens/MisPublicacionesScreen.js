@@ -7,6 +7,7 @@ import {
   eliminarPublicacion,
   obtenerMisBorradores,
   obtenerMisPublicaciones,
+  renovarPublicacion,
 } from '../services/publicaciones';
 import { CATEGORIAS, TIPOS } from '../utils/etiquetas';
 
@@ -15,6 +16,7 @@ const ETIQUETA_ESTADO = {
   ABIERTA: 'Abierta',
   EN_RECLAMO: 'En reclamo',
   RESUELTA: 'Resuelta',
+  VENCIDA: 'Vencida',
 };
 
 export default function MisPublicacionesScreen({ onAbrirPublicacion }) {
@@ -26,7 +28,6 @@ export default function MisPublicacionesScreen({ onAbrirPublicacion }) {
   const cargar = useCallback(async () => {
     try {
       setError(null);
-      // Las dos llamadas salen a la vez (en paralelo) y esperamos a que terminen ambas.
       const [borradores, publicadas] = await Promise.all([
         obtenerMisBorradores(),
         obtenerMisPublicaciones(),
@@ -56,13 +57,23 @@ export default function MisPublicacionesScreen({ onAbrirPublicacion }) {
         onPress: async () => {
           try {
             await eliminarPublicacion(item.id);
-            cargar(); // vuelve a pedir las listas actualizadas
+            cargar();
           } catch (e) {
             Alert.alert('Error', getErrorMessage(e));
           }
         },
       },
     ]);
+  };
+
+  const renovar = async (item) => {
+    try {
+      await renovarPublicacion(item.id);
+      cargar();
+      Alert.alert('Listo', 'Renovaste la publicación por 30 días más');
+    } catch (e) {
+      Alert.alert('Error', getErrorMessage(e));
+    }
   };
 
   if (cargando) return <EstadoCargando />;
@@ -94,7 +105,11 @@ export default function MisPublicacionesScreen({ onAbrirPublicacion }) {
       renderItem={({ item }) => (
         <Pressable
           style={styles.tarjeta}
-          onPress={() => item.estado !== 'BORRADOR' && onAbrirPublicacion?.(item.id)}
+          onPress={() =>
+            item.estado === 'BORRADOR'
+              ? Alert.alert('Borrador', 'Retomalo desde la pestaña Publicar')
+              : onAbrirPublicacion?.(item.id)
+          }
           onLongPress={() => confirmarBorrado(item)}
         >
           {item.fotoPrincipal ? (
@@ -115,6 +130,17 @@ export default function MisPublicacionesScreen({ onAbrirPublicacion }) {
             <Text style={[styles.estado, item.estado === 'BORRADOR' && styles.estadoBorrador]}>
               {ETIQUETA_ESTADO[item.estado] || item.estado}
             </Text>
+            {item.estado !== 'BORRADOR' && item.fechaVencimiento && (
+              <Text style={styles.detalle}>
+                {item.estado === 'VENCIDA' ? 'Venció el ' : 'Vence el '}
+                {new Date(item.fechaVencimiento).toLocaleDateString('es-AR')}
+              </Text>
+            )}
+            {(item.estado === 'ABIERTA' || item.estado === 'VENCIDA') && (
+              <Pressable onPress={() => renovar(item)}>
+                <Text style={styles.renovar}>Renovar por 30 días</Text>
+              </Pressable>
+            )}
           </View>
         </Pressable>
       )}
@@ -135,5 +161,6 @@ const styles = StyleSheet.create({
   detalle: { color: COLORS.muted, fontSize: 13 },
   estado: { color: COLORS.primary, fontWeight: '600', marginTop: 2 },
   estadoBorrador: { color: '#d97706' },
+  renovar: { color: COLORS.primary, fontWeight: '600', marginTop: 4 },
   ayuda: { color: COLORS.muted, textAlign: 'center', marginTop: 16, fontSize: 12 },
 });
