@@ -1,33 +1,79 @@
 import { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import * as Location from 'expo-location';
 import ChipSelector from '../components/ChipSelector';
+import SelectorFotos from '../components/SelectorFotos';
 import { COLORS } from '../config';
 import { getErrorMessage } from '../services/api';
-import { actualizarPublicacion, crearPublicacion } from '../services/publicaciones';
+import {
+  actualizarPublicacion,
+  crearPublicacion,
+  publicarPublicacion,
+  subirFoto,
+} from '../services/publicaciones';
 import { CATEGORIAS, TIPOS } from '../utils/etiquetas';
+import { aFechaISO } from '../utils/fechaLocal';
+import { FRANJAS, aOpciones } from '../utils/publicarOpciones';
 
-// Convierte un objeto { CLAVE: 'Texto' } en [{ valor, label }] para el ChipSelector.
-const aOpciones = (obj) => Object.entries(obj).map(([valor, label]) => ({ valor, label }));
+const TOTAL_PASOS = 4;
 
-const TOTAL_PASOS = 2; // se amplía en las próximas tandas
+const FORM_INICIAL = {
+  tipo: null,
+  categoria: null,
+  titulo: '',
+  descripcion: '',
+  fechaSuceso: new Date(),
+  franjaHoraria: null,
+  barrio: '',
+  direccionExacta: '',
+  latitud: null,
+  longitud: null,
+};
 
 export default function PublicarScreen() {
   const [paso, setPaso] = useState(1);
   const [publicacionId, setPublicacionId] = useState(null);
   const [guardando, setGuardando] = useState(false);
-  const [form, setForm] = useState({
-    tipo: null,
-    categoria: null,
-    titulo: '',
-    descripcion: '',
-  });
+  const [form, setForm] = useState({ ...FORM_INICIAL, fechaSuceso: new Date() });
+  const [fotos, setFotos] = useState([]);
+  const [fotosSubidas, setFotosSubidas] = useState([]); // uris ya subidas, para no repetir si reintenta
+  const [mostrarFecha, setMostrarFecha] = useState(false);
+  const [buscandoUbicacion, setBuscandoUbicacion] = useState(false);
 
   // Actualiza un campo sin perder los demás.
   const cambiar = (campo, valor) => setForm((anterior) => ({ ...anterior, [campo]: valor }));
 
+  // Vuelve todo al estado inicial para cargar otra publicación.
+  const reiniciar = () => {
+    setPaso(1);
+    setPublicacionId(null);
+    setFotos([]);
+    setFotosSubidas([]);
+    setForm({ ...FORM_INICIAL, fechaSuceso: new Date() });
+  };
+
+  // Pide permiso y lee las coordenadas actuales del celular.
+  const usarMiUbicacion = async () => {
+    try {
+      setBuscandoUbicacion(true);
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        return Alert.alert('Permiso denegado', 'Sin ubicación podés escribir el barrio a mano');
+      }
+      const pos = await Location.getCurrentPositionAsync({});
+      setForm((f) => ({ ...f, latitud: pos.coords.latitude, longitud: pos.coords.longitude }));
+    } catch (error) {
+      Alert.alert('Error', 'No se pudo obtener la ubicación');
+    } finally {
+      setBuscandoUbicacion(false);
+    }
+  };
+
   const siguiente = async () => {
     try {
       setGuardando(true);
+
       if (paso === 1) {
         if (!form.tipo) return Alert.alert('Falta algo', 'Elegí si perdiste o encontraste algo');
         // Primera vez: se crea en el servidor. Si ya existía (volvió atrás), solo se actualiza.
@@ -36,6 +82,7 @@ export default function PublicarScreen() {
           : await crearPublicacion({ tipo: form.tipo });
         setPublicacionId(creada.id);
       }
+
       if (paso === 2) {
         if (!form.categoria || !form.titulo.trim()) {
           return Alert.alert('Falta algo', 'Elegí una categoría y escribí un título');
@@ -46,6 +93,38 @@ export default function PublicarScreen() {
           descripcion: form.descripcion.trim(),
         });
       }
+
+      if (paso === 3) {
+        if (!form.barrio.trim()) {
+          return Alert.alert('Falta algo', 'Indicá el barrio donde ocurrió');
+        }
+        if (form.fechaSuceso > new Date()) {
+          return Alert.alert('Fecha inválida', 'La fecha no puede ser futura');
+        }
+        await actualizarPublicacion(publicacionId, {
+          fechaSuceso: aFechaISO(form.fechaSuceso),
+          franjaHoraria: form.franjaHoraria,
+          barrio: form.barrio.trim(),
+          direccionExacta: form.direccionExacta.trim() || null,
+          latitud: form.latitud,
+          longitud: form.longitud,
+        });
+      }
+
+      if (paso === 4) {
+        if (fotos.length === 0) {
+          return Alert.alert('Falta algo', 'Agregá al menos una foto');
+        }
+        // Sube solo las que todavía no se subieron (si falló a la mitad, reintenta sin duplicar)
+        for (const foto of fotos) {
+          if (!fotosSubidas.includes(foto.uri)) {
+            await subirFoto(publicacionId, foto);
+            setFotosSubidas((prev) => [...prev, foto.uri]);
+          }
+        }
+        await publicarPublicacion(publicacionId);
+      }
+
       setPaso((p) => Math.min(p + 1, TOTAL_PASOS + 1));
     } catch (error) {
       Alert.alert('Error', getErrorMessage(error));
@@ -54,11 +133,18 @@ export default function PublicarScreen() {
     }
   };
 
+  // Pantalla final: ya se publicó.
   if (paso > TOTAL_PASOS) {
     return (
       <View style={styles.centro}>
-        <Text style={styles.titulo}>Borrador #{publicacionId} guardado</Text>
-        <Text style={styles.ayuda}>Los siguientes pasos los agregamos en la próxima tanda.</Text>
+        <Text style={styles.titulo}>¡Publicación #{publicacionId} publicada!</Text>
+        <Text style={styles.ayuda}>Ya la pueden ver otros usuarios en el buscador.</Text>
+        <Pressable
+          style={[styles.boton, { flex: 0, alignSelf: 'stretch', marginTop: 12 }]}
+          onPress={reiniciar}
+        >
+          <Text style={styles.botonTexto}>Publicar otra</Text>
+        </Pressable>
       </View>
     );
   }
@@ -70,14 +156,22 @@ export default function PublicarScreen() {
       {paso === 1 && (
         <>
           <Text style={styles.titulo}>¿Qué pasó?</Text>
-          <ChipSelector opciones={aOpciones(TIPOS)} valor={form.tipo} onChange={(v) => cambiar('tipo', v)} />
+          <ChipSelector
+            opciones={aOpciones(TIPOS)}
+            valor={form.tipo}
+            onChange={(v) => cambiar('tipo', v)}
+          />
         </>
       )}
 
       {paso === 2 && (
         <>
           <Text style={styles.titulo}>¿Qué es?</Text>
-          <ChipSelector opciones={aOpciones(CATEGORIAS)} valor={form.categoria} onChange={(v) => cambiar('categoria', v)} />
+          <ChipSelector
+            opciones={aOpciones(CATEGORIAS)}
+            valor={form.categoria}
+            onChange={(v) => cambiar('categoria', v)}
+          />
           <Text style={styles.etiqueta}>Título</Text>
           <TextInput
             style={styles.input}
@@ -97,14 +191,92 @@ export default function PublicarScreen() {
         </>
       )}
 
+      {paso === 3 && (
+        <>
+          <Text style={styles.titulo}>¿Cuándo y dónde?</Text>
+
+          <Text style={styles.etiqueta}>Fecha</Text>
+          <Pressable style={styles.input} onPress={() => setMostrarFecha(true)}>
+            <Text style={{ color: COLORS.text }}>
+              {form.fechaSuceso.toLocaleDateString('es-AR')}
+            </Text>
+          </Pressable>
+          {mostrarFecha && (
+            <DateTimePicker
+              value={form.fechaSuceso}
+              mode="date"
+              maximumDate={new Date()}
+              onChange={(event, fecha) => {
+                setMostrarFecha(false); // en Android el selector se cierra solo
+                if (event.type === 'set' && fecha) cambiar('fechaSuceso', fecha);
+              }}
+            />
+          )}
+
+          <Text style={styles.etiqueta}>Momento del día</Text>
+          <ChipSelector
+            opciones={aOpciones(FRANJAS)}
+            valor={form.franjaHoraria}
+            onChange={(v) => cambiar('franjaHoraria', v)}
+          />
+
+          <Text style={styles.etiqueta}>Barrio</Text>
+          <TextInput
+            style={styles.input}
+            value={form.barrio}
+            onChangeText={(t) => cambiar('barrio', t)}
+            placeholder="Ej: Belgrano"
+          />
+
+          <Text style={styles.etiqueta}>Dirección exacta (opcional, no es pública)</Text>
+          <TextInput
+            style={styles.input}
+            value={form.direccionExacta}
+            onChangeText={(t) => cambiar('direccionExacta', t)}
+            placeholder="Calle y altura"
+          />
+
+          <Pressable
+            style={[styles.boton, styles.botonSecundario]}
+            onPress={usarMiUbicacion}
+            disabled={buscandoUbicacion}
+          >
+            <Text style={styles.botonSecundarioTexto}>
+              {buscandoUbicacion
+                ? 'Buscando…'
+                : form.latitud
+                  ? 'Ubicación guardada ✓ (tocá para actualizar)'
+                  : 'Usar mi ubicación actual'}
+            </Text>
+          </Pressable>
+        </>
+      )}
+
+      {paso === 4 && (
+        <>
+          <Text style={styles.titulo}>Fotos</Text>
+          <Text style={styles.ayuda}>Una buena foto ayuda a reconocer el objeto.</Text>
+          <SelectorFotos fotos={fotos} onChange={setFotos} />
+        </>
+      )}
+
       <View style={styles.botones}>
         {paso > 1 && (
-          <Pressable style={[styles.boton, styles.botonSecundario]} onPress={() => setPaso(paso - 1)}>
+          <Pressable
+            style={[styles.boton, styles.botonSecundario]}
+            onPress={() => setPaso(paso - 1)}
+          >
             <Text style={styles.botonSecundarioTexto}>Atrás</Text>
           </Pressable>
         )}
-        <Pressable style={[styles.boton, guardando && styles.botonInactivo]} onPress={siguiente} disabled={guardando}>
-          <Text style={styles.botonTexto}>{guardando ? 'Guardando…' : 'Siguiente'}</Text>
+        <Pressable
+          style={[styles.boton, guardando && styles.botonInactivo]}
+          onPress={siguiente}
+          disabled={guardando}
+        >
+          <Text style={styles.botonTexto}>
+            {guardando ? 'Guardando…' : paso === TOTAL_PASOS ? 'Publicar' : 'Siguiente'}
+          </Text>
         </Pressable>
       </View>
     </ScrollView>
