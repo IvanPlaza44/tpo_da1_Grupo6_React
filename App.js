@@ -19,6 +19,7 @@ import HistorialScreen from './screens/HistorialScreen';
 import BotonGuardarAlerta from './components/BotonGuardarAlerta';
 import BotonSeguir from './components/BotonSeguir';
 import Badge from './components/Badge';
+import BuscarFlow from './screens/BuscarFlow';
 import useNovedades from './hooks/useNovedades';
 import PublicarScreen from './screens/PublicarScreen';
 import MisPublicacionesScreen from './screens/MisPublicacionesScreen';
@@ -62,6 +63,7 @@ function PruebaDetalle({ publicacionId, onVolver }) {
 }
 
 const PANTALLAS = [
+    { clave: 'buscar', titulo: 'Buscar', Componente: BuscarFlow },
   { clave: 'alertas', titulo: 'Mis alertas', Componente: MisAlertasScreen },
   { clave: 'seguidas', titulo: 'Seguidas', Componente: SeguidasScreen },
   { clave: 'guardar', titulo: 'Probar guardar', Componente: PruebaGuardarAlerta },
@@ -119,6 +121,7 @@ function AuthenticatedApp() {
           onAbrirPublicacion={setDetalleId}
           onAbrirPerfil={setPerfilId}
           onNovedadesVistas={novedades.recargar}
+          onIrA={irA}
         />
       )}
       <StatusBar style="auto" />
