@@ -32,3 +32,19 @@ export const publicarPublicacion = async (id) => {
   const response = await api.post(`/api/publicaciones/${id}/publicar`);
   return response.data;
 };
+
+// Publicaciones propias que ya están publicadas (abierta, en reclamo, resuelta).
+export const obtenerMisPublicaciones = async () => {
+  const response = await api.get('/api/publicaciones/mias');
+  return response.data;
+};
+
+// Publicaciones propias que todavía son borrador.
+export const obtenerMisBorradores = async () => {
+  const response = await api.get('/api/publicaciones/borradores');
+  return response.data;
+};
+
+export const eliminarPublicacion = async (id) => {
+  await api.delete(`/api/publicaciones/${id}`);
+};
