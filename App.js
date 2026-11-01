@@ -22,6 +22,9 @@ import Badge from './components/Badge';
 import useNovedades from './hooks/useNovedades';
 import PublicarScreen from './screens/PublicarScreen';
 import MisPublicacionesScreen from './screens/MisPublicacionesScreen';
+import { ConexionProvider } from './context/ConexionContext';
+import BannerSinConexion from './components/BannerSinConexion';
+import SincronizadorPendientes from './components/SincronizadorPendientes';
 
 const Stack = createNativeStackNavigator();
 
@@ -89,6 +92,8 @@ function AuthenticatedApp() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <BannerSinConexion />
+      <SincronizadorPendientes />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.selector}>
         {PANTALLAS.map((p) => (
           <Pressable
@@ -154,11 +159,13 @@ function RootNavigator() {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <ProfileProvider>
-          <RootNavigator />
-        </ProfileProvider>
-      </AuthProvider>
+      <ConexionProvider>
+        <AuthProvider>
+          <ProfileProvider>
+            <RootNavigator />
+          </ProfileProvider>
+        </AuthProvider>
+      </ConexionProvider>
     </SafeAreaProvider>
   );
 }
