@@ -1,59 +1,142 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Location from 'expo-location';
 import ChipSelector from '../components/ChipSelector';
+import { EstadoCargando } from '../components/EstadoPantalla';
 import SelectorFotos from '../components/SelectorFotos';
 import { COLORS } from '../config';
 import { getErrorMessage } from '../services/api';
 import {
   actualizarPublicacion,
   crearPublicacion,
+  eliminarPublicacion,
+  obtenerMisBorradores,
+  obtenerPublicacion,
   publicarPublicacion,
   subirFoto,
 } from '../services/publicaciones';
 import { CATEGORIAS, TIPOS } from '../utils/etiquetas';
-import { aFechaISO } from '../utils/fechaLocal';
-import { FRANJAS, aOpciones } from '../utils/publicarOpciones';
+import { aFechaISO, aHoraISO, franjaDeHora, parseFechaISO, parseHora } from '../utils/fechaLocal';
+import { aOpciones } from '../utils/publicarOpciones';
 
 const TOTAL_PASOS = 4;
 
-const FORM_INICIAL = {
+const formInicial = () => ({
   tipo: null,
   categoria: null,
   titulo: '',
   descripcion: '',
+  preguntaVerificacion: '',
+  respuestaVerificacion: '',
   fechaSuceso: new Date(),
-  franjaHoraria: null,
+  horaSuceso: new Date(),
   barrio: '',
   direccionExacta: '',
   latitud: null,
   longitud: null,
-};
+});
 
 export default function PublicarScreen() {
+  // modo: 'cargando' (buscando borradores) | 'borradores' (elegir uno) | 'formulario'
+  const [modo, setModo] = useState('cargando');
+  const [borradores, setBorradores] = useState([]);
   const [paso, setPaso] = useState(1);
   const [publicacionId, setPublicacionId] = useState(null);
   const [guardando, setGuardando] = useState(false);
-  const [form, setForm] = useState({ ...FORM_INICIAL, fechaSuceso: new Date() });
+  const [form, setForm] = useState(formInicial());
   const [fotos, setFotos] = useState([]);
-  const [fotosSubidas, setFotosSubidas] = useState([]); // uris ya subidas, para no repetir si reintenta
+  const [fotosRemotas, setFotosRemotas] = useState([]); // fotos que el borrador ya tiene en el servidor
+  const [fotosSubidas, setFotosSubidas] = useState([]);
   const [mostrarFecha, setMostrarFecha] = useState(false);
+  const [mostrarHora, setMostrarHora] = useState(false);
   const [buscandoUbicacion, setBuscandoUbicacion] = useState(false);
 
-  // Actualiza un campo sin perder los demás.
   const cambiar = (campo, valor) => setForm((anterior) => ({ ...anterior, [campo]: valor }));
 
-  // Vuelve todo al estado inicial para cargar otra publicación.
+  // Al abrir la pantalla: si hay borradores guardados, se ofrece retomarlos.
+  useEffect(() => {
+    const buscar = async () => {
+      try {
+        const lista = await obtenerMisBorradores();
+        setBorradores(lista);
+        setModo(lista.length > 0 ? 'borradores' : 'formulario');
+      } catch (error) {
+        setModo('formulario');
+      }
+    };
+    buscar();
+  }, []);
+
   const reiniciar = () => {
     setPaso(1);
     setPublicacionId(null);
     setFotos([]);
+    setFotosRemotas([]);
     setFotosSubidas([]);
-    setForm({ ...FORM_INICIAL, fechaSuceso: new Date() });
+    setForm(formInicial());
   };
 
-  // Pide permiso y lee las coordenadas actuales del celular.
+  const empezarNuevo = () => {
+    reiniciar();
+    setModo('formulario');
+  };
+
+  // Carga el borrador del servidor, rellena el formulario y salta al primer paso incompleto.
+  const retomar = async (item) => {
+    try {
+      setGuardando(true);
+      const d = await obtenerPublicacion(item.id);
+      setPublicacionId(d.id);
+      setFotos([]);
+      setFotosSubidas([]);
+      setFotosRemotas(d.fotos || []);
+      setForm({
+        tipo: d.tipo,
+        categoria: d.categoria || null,
+        titulo: d.titulo || '',
+        descripcion: d.descripcion || '',
+        preguntaVerificacion: d.preguntaVerificacion || '',
+        respuestaVerificacion: d.respuestaVerificacion || '',
+        fechaSuceso: d.fechaSuceso ? parseFechaISO(d.fechaSuceso) : new Date(),
+        horaSuceso: d.horaSuceso ? parseHora(d.horaSuceso) : new Date(),
+        barrio: d.barrio || '',
+        direccionExacta: d.direccionExacta || '',
+        latitud: d.latitud ?? null,
+        longitud: d.longitud ?? null,
+      });
+      let pasoInicial = 2;
+      if (d.categoria && d.titulo) pasoInicial = 3;
+      if (d.categoria && d.titulo && d.barrio && d.fechaSuceso) pasoInicial = 4;
+      setPaso(pasoInicial);
+      setModo('formulario');
+    } catch (error) {
+      Alert.alert('Error', getErrorMessage(error));
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const descartar = (item) => {
+    Alert.alert('Descartar borrador', '¿Eliminar este borrador?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Eliminar',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await eliminarPublicacion(item.id);
+            const restantes = borradores.filter((b) => b.id !== item.id);
+            setBorradores(restantes);
+            if (restantes.length === 0) empezarNuevo();
+          } catch (error) {
+            Alert.alert('Error', getErrorMessage(error));
+          }
+        },
+      },
+    ]);
+  };
+
   const usarMiUbicacion = async () => {
     try {
       setBuscandoUbicacion(true);
@@ -76,7 +159,6 @@ export default function PublicarScreen() {
 
       if (paso === 1) {
         if (!form.tipo) return Alert.alert('Falta algo', 'Elegí si perdiste o encontraste algo');
-        // Primera vez: se crea en el servidor. Si ya existía (volvió atrás), solo se actualiza.
         const creada = publicacionId
           ? await actualizarPublicacion(publicacionId, { tipo: form.tipo })
           : await crearPublicacion({ tipo: form.tipo });
@@ -87,10 +169,19 @@ export default function PublicarScreen() {
         if (!form.categoria || !form.titulo.trim()) {
           return Alert.alert('Falta algo', 'Elegí una categoría y escribí un título');
         }
+        const esEncontrado = form.tipo === 'ENCONTRADO';
+        if (esEncontrado && (!form.preguntaVerificacion.trim() || !form.respuestaVerificacion.trim())) {
+          return Alert.alert('Falta algo', 'Cargá la pregunta de verificación y su respuesta');
+        }
         await actualizarPublicacion(publicacionId, {
           categoria: form.categoria,
           titulo: form.titulo.trim(),
           descripcion: form.descripcion.trim(),
+          // Solo se mandan si encontró algo (si no, quedan fuera del JSON)
+          ...(esEncontrado && {
+            preguntaVerificacion: form.preguntaVerificacion.trim(),
+            respuestaVerificacion: form.respuestaVerificacion.trim(),
+          }),
         });
       }
 
@@ -98,12 +189,17 @@ export default function PublicarScreen() {
         if (!form.barrio.trim()) {
           return Alert.alert('Falta algo', 'Indicá el barrio donde ocurrió');
         }
-        if (form.fechaSuceso > new Date()) {
-          return Alert.alert('Fecha inválida', 'La fecha no puede ser futura');
+        // Se junta fecha + hora en un solo momento para chequear que no sea futuro.
+        const f = form.fechaSuceso;
+        const h = form.horaSuceso;
+        const momento = new Date(f.getFullYear(), f.getMonth(), f.getDate(), h.getHours(), h.getMinutes());
+        if (momento > new Date()) {
+          return Alert.alert('Fecha inválida', 'La fecha y hora no pueden ser futuras');
         }
         await actualizarPublicacion(publicacionId, {
-          fechaSuceso: aFechaISO(form.fechaSuceso),
-          franjaHoraria: form.franjaHoraria,
+          fechaSuceso: aFechaISO(f),
+          horaSuceso: aHoraISO(h),
+          franjaHoraria: franjaDeHora(h),
           barrio: form.barrio.trim(),
           direccionExacta: form.direccionExacta.trim() || null,
           latitud: form.latitud,
@@ -112,10 +208,9 @@ export default function PublicarScreen() {
       }
 
       if (paso === 4) {
-        if (fotos.length === 0) {
+        if (fotos.length + fotosRemotas.length === 0) {
           return Alert.alert('Falta algo', 'Agregá al menos una foto');
         }
-        // Sube solo las que todavía no se subieron (si falló a la mitad, reintenta sin duplicar)
         for (const foto of fotos) {
           if (!fotosSubidas.includes(foto.uri)) {
             await subirFoto(publicacionId, foto);
@@ -133,12 +228,42 @@ export default function PublicarScreen() {
     }
   };
 
-  // Pantalla final: ya se publicó.
+  if (modo === 'cargando') return <EstadoCargando />;
+
+  if (modo === 'borradores') {
+    return (
+      <ScrollView contentContainerStyle={styles.container}>
+        <Text style={styles.titulo}>Tenés borradores sin terminar</Text>
+        {borradores.map((b) => (
+          <View key={b.id} style={styles.tarjeta}>
+            <Text style={styles.tarjetaTitulo}>{b.titulo || 'Sin título'}</Text>
+            <Text style={styles.ayudaIzq}>
+              {TIPOS[b.tipo]} · {CATEGORIAS[b.categoria] || 'Sin categoría'}
+            </Text>
+            <View style={styles.botones}>
+              <Pressable style={[styles.boton, styles.botonSecundario]} onPress={() => descartar(b)}>
+                <Text style={styles.botonSecundarioTexto}>Descartar</Text>
+              </Pressable>
+              <Pressable style={styles.boton} onPress={() => retomar(b)} disabled={guardando}>
+                <Text style={styles.botonTexto}>Retomar</Text>
+              </Pressable>
+            </View>
+          </View>
+        ))}
+        <Pressable style={[styles.boton, styles.botonSecundario]} onPress={empezarNuevo}>
+          <Text style={styles.botonSecundarioTexto}>Empezar una publicación nueva</Text>
+        </Pressable>
+      </ScrollView>
+    );
+  }
+
   if (paso > TOTAL_PASOS) {
     return (
       <View style={styles.centro}>
         <Text style={styles.titulo}>¡Publicación #{publicacionId} publicada!</Text>
-        <Text style={styles.ayuda}>Ya la pueden ver otros usuarios en el buscador.</Text>
+        <Text style={styles.ayuda}>
+          Ya la pueden ver otros usuarios en el buscador. Vence en 30 días y podés renovarla.
+        </Text>
         <Pressable
           style={[styles.boton, { flex: 0, alignSelf: 'stretch', marginTop: 12 }]}
           onPress={reiniciar}
@@ -188,6 +313,28 @@ export default function PublicarScreen() {
             placeholder="Detalles que ayuden a identificarlo"
             multiline
           />
+
+          {form.tipo === 'ENCONTRADO' && (
+            <>
+              <Text style={styles.etiqueta}>Pregunta de verificación</Text>
+              <Text style={styles.ayudaIzq}>
+                Un detalle que no se vea en las fotos, para comprobar que quien lo reclama es el dueño.
+              </Text>
+              <TextInput
+                style={styles.input}
+                value={form.preguntaVerificacion}
+                onChangeText={(t) => cambiar('preguntaVerificacion', t)}
+                placeholder="Ej: ¿De qué color es el llavero?"
+              />
+              <Text style={styles.etiqueta}>Respuesta (privada)</Text>
+              <TextInput
+                style={styles.input}
+                value={form.respuestaVerificacion}
+                onChangeText={(t) => cambiar('respuestaVerificacion', t)}
+                placeholder="Solo la ves vos"
+              />
+            </>
+          )}
         </>
       )}
 
@@ -207,18 +354,27 @@ export default function PublicarScreen() {
               mode="date"
               maximumDate={new Date()}
               onChange={(event, fecha) => {
-                setMostrarFecha(false); // en Android el selector se cierra solo
+                setMostrarFecha(false);
                 if (event.type === 'set' && fecha) cambiar('fechaSuceso', fecha);
               }}
             />
           )}
 
-          <Text style={styles.etiqueta}>Momento del día</Text>
-          <ChipSelector
-            opciones={aOpciones(FRANJAS)}
-            valor={form.franjaHoraria}
-            onChange={(v) => cambiar('franjaHoraria', v)}
-          />
+          <Text style={styles.etiqueta}>Hora aproximada</Text>
+          <Pressable style={styles.input} onPress={() => setMostrarHora(true)}>
+            <Text style={{ color: COLORS.text }}>{aHoraISO(form.horaSuceso)}</Text>
+          </Pressable>
+          {mostrarHora && (
+            <DateTimePicker
+              value={form.horaSuceso}
+              mode="time"
+              is24Hour
+              onChange={(event, hora) => {
+                setMostrarHora(false);
+                if (event.type === 'set' && hora) cambiar('horaSuceso', hora);
+              }}
+            />
+          )}
 
           <Text style={styles.etiqueta}>Barrio</Text>
           <TextInput
@@ -256,6 +412,11 @@ export default function PublicarScreen() {
         <>
           <Text style={styles.titulo}>Fotos</Text>
           <Text style={styles.ayuda}>Una buena foto ayuda a reconocer el objeto.</Text>
+          {fotosRemotas.length > 0 && (
+            <Text style={styles.ayudaIzq}>
+              Este borrador ya tiene {fotosRemotas.length} foto(s) subida(s).
+            </Text>
+          )}
           <SelectorFotos fotos={fotos} onChange={setFotos} />
         </>
       )}
@@ -289,6 +450,7 @@ const styles = StyleSheet.create({
   progreso: { color: COLORS.muted },
   titulo: { fontSize: 20, fontWeight: 'bold', color: COLORS.text },
   ayuda: { color: COLORS.muted, textAlign: 'center' },
+  ayudaIzq: { color: COLORS.muted },
   etiqueta: { color: COLORS.text, fontWeight: '600', marginTop: 4 },
   input: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 10, color: COLORS.text },
   inputGrande: { minHeight: 90, textAlignVertical: 'top' },
@@ -298,4 +460,6 @@ const styles = StyleSheet.create({
   botonTexto: { color: '#fff', fontWeight: 'bold' },
   botonSecundario: { backgroundColor: 'transparent', borderWidth: 1, borderColor: COLORS.border },
   botonSecundarioTexto: { color: COLORS.text },
+  tarjeta: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 12, gap: 4 },
+  tarjetaTitulo: { fontWeight: 'bold', color: COLORS.text },
 });
