@@ -17,9 +17,9 @@ import MisAlertasScreen from './screens/MisAlertasScreen';
 import SeguidasScreen from './screens/SeguidasScreen';
 import HistorialScreen from './screens/HistorialScreen';
 import BotonGuardarAlerta from './components/BotonGuardarAlerta';
-import BotonSeguir from './components/BotonSeguir';
 import Badge from './components/Badge';
 import BuscarFlow from './screens/BuscarFlow';
+import DetalleScreen from './screens/DetalleScreen';
 import useNovedades from './hooks/useNovedades';
 import PublicarScreen from './screens/PublicarScreen';
 import MisPublicacionesScreen from './screens/MisPublicacionesScreen';
@@ -50,17 +50,7 @@ function PruebaGuardarAlerta() {
   );
 }
 
-function PruebaDetalle({ publicacionId, onVolver }) {
-  return (
-    <View style={styles.prueba}>
-      <Pressable onPress={onVolver}>
-        <Text style={styles.volver}>‹ Volver</Text>
-      </Pressable>
-      <Text style={styles.pruebaTexto}>Detalle provisorio de la publicación #{publicacionId}</Text>
-      <BotonSeguir publicacionId={publicacionId} siguiendo />
-    </View>
-  );
-}
+
 
 const PANTALLAS = [
     { clave: 'buscar', titulo: 'Buscar', Componente: BuscarFlow },
@@ -111,10 +101,15 @@ function AuthenticatedApp() {
         ))}
       </ScrollView>
 
-      {detalleId ? (
-        <PruebaDetalle publicacionId={detalleId} onVolver={volverDelDetalle} />
-      ) : perfilId ? (
+            {perfilId ? (
         <PublicProfileScreen usuarioId={perfilId} onVolver={() => setPerfilId(null)} />
+      ) : detalleId ? (
+        <DetalleScreen
+          publicacionId={detalleId}
+          onVolver={volverDelDetalle}
+          onAbrirPerfil={setPerfilId}
+          onIrA={irA}
+        />
       ) : (
         <Componente
           key={actual}
@@ -124,6 +119,7 @@ function AuthenticatedApp() {
           onIrA={irA}
         />
       )}
+      
       <StatusBar style="auto" />
     </SafeAreaView>
   );
