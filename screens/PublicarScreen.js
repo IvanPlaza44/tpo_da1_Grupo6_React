@@ -6,15 +6,16 @@ import ChipSelector from '../components/ChipSelector';
 import { EstadoCargando } from '../components/EstadoPantalla';
 import SelectorFotos from '../components/SelectorFotos';
 import { COLORS } from '../config';
+import { useAuth } from '../hooks/useAuth';
+import { useConexion } from '../hooks/useConexion';
 import { getErrorMessage } from '../services/api';
+import { agregarPendiente, procesarItem } from '../services/colaPendientes';
 import {
   actualizarPublicacion,
   crearPublicacion,
   eliminarPublicacion,
   obtenerMisBorradores,
   obtenerPublicacion,
-  publicarPublicacion,
-  subirFoto,
 } from '../services/publicaciones';
 import { CATEGORIAS, TIPOS } from '../utils/etiquetas';
 import { aFechaISO, aHoraISO, franjaDeHora, parseFechaISO, parseHora } from '../utils/fechaLocal';
@@ -37,13 +38,36 @@ const formInicial = () => ({
   longitud: null,
 });
 
+// Arma el objeto con TODOS los datos de la publicación, listo para mandar al servidor.
+const armarDatos = (form) => ({
+  categoria: form.categoria,
+  titulo: form.titulo.trim(),
+  descripcion: form.descripcion.trim(),
+  fechaSuceso: aFechaISO(form.fechaSuceso),
+  horaSuceso: aHoraISO(form.horaSuceso),
+  franjaHoraria: franjaDeHora(form.horaSuceso),
+  barrio: form.barrio.trim(),
+  direccionExacta: form.direccionExacta.trim() || null,
+  latitud: form.latitud,
+  longitud: form.longitud,
+  // La pregunta y su respuesta solo existen si encontró algo
+  ...(form.tipo === 'ENCONTRADO' && {
+    preguntaVerificacion: form.preguntaVerificacion.trim(),
+    respuestaVerificacion: form.respuestaVerificacion.trim(),
+  }),
+});
+
 export default function PublicarScreen() {
+  const { user } = useAuth();
+  const { conectado } = useConexion();
+
   // modo: 'cargando' (buscando borradores) | 'borradores' (elegir uno) | 'formulario'
   const [modo, setModo] = useState('cargando');
   const [borradores, setBorradores] = useState([]);
   const [paso, setPaso] = useState(1);
   const [publicacionId, setPublicacionId] = useState(null);
   const [guardando, setGuardando] = useState(false);
+  const [guardadaSinConexion, setGuardadaSinConexion] = useState(false);
   const [form, setForm] = useState(formInicial());
   const [fotos, setFotos] = useState([]);
   const [fotosRemotas, setFotosRemotas] = useState([]); // fotos que el borrador ya tiene en el servidor
@@ -62,7 +86,7 @@ export default function PublicarScreen() {
         setBorradores(lista);
         setModo(lista.length > 0 ? 'borradores' : 'formulario');
       } catch (error) {
-        setModo('formulario');
+        setModo('formulario'); // sin conexión: directo al formulario
       }
     };
     buscar();
@@ -74,6 +98,7 @@ export default function PublicarScreen() {
     setFotos([]);
     setFotosRemotas([]);
     setFotosSubidas([]);
+    setGuardadaSinConexion(false);
     setForm(formInicial());
   };
 
@@ -159,10 +184,13 @@ export default function PublicarScreen() {
 
       if (paso === 1) {
         if (!form.tipo) return Alert.alert('Falta algo', 'Elegí si perdiste o encontraste algo');
-        const creada = publicacionId
-          ? await actualizarPublicacion(publicacionId, { tipo: form.tipo })
-          : await crearPublicacion({ tipo: form.tipo });
-        setPublicacionId(creada.id);
+        // Con conexión se crea el borrador ya. Sin conexión se crea recién al enviar.
+        if (conectado) {
+          const creada = publicacionId
+            ? await actualizarPublicacion(publicacionId, { tipo: form.tipo })
+            : await crearPublicacion({ tipo: form.tipo });
+          setPublicacionId(creada.id);
+        }
       }
 
       if (paso === 2) {
@@ -173,16 +201,17 @@ export default function PublicarScreen() {
         if (esEncontrado && (!form.preguntaVerificacion.trim() || !form.respuestaVerificacion.trim())) {
           return Alert.alert('Falta algo', 'Cargá la pregunta de verificación y su respuesta');
         }
-        await actualizarPublicacion(publicacionId, {
-          categoria: form.categoria,
-          titulo: form.titulo.trim(),
-          descripcion: form.descripcion.trim(),
-          // Solo se mandan si encontró algo (si no, quedan fuera del JSON)
-          ...(esEncontrado && {
-            preguntaVerificacion: form.preguntaVerificacion.trim(),
-            respuestaVerificacion: form.respuestaVerificacion.trim(),
-          }),
-        });
+        if (conectado && publicacionId) {
+          await actualizarPublicacion(publicacionId, {
+            categoria: form.categoria,
+            titulo: form.titulo.trim(),
+            descripcion: form.descripcion.trim(),
+            ...(esEncontrado && {
+              preguntaVerificacion: form.preguntaVerificacion.trim(),
+              respuestaVerificacion: form.respuestaVerificacion.trim(),
+            }),
+          });
+        }
       }
 
       if (paso === 3) {
@@ -196,28 +225,46 @@ export default function PublicarScreen() {
         if (momento > new Date()) {
           return Alert.alert('Fecha inválida', 'La fecha y hora no pueden ser futuras');
         }
-        await actualizarPublicacion(publicacionId, {
-          fechaSuceso: aFechaISO(f),
-          horaSuceso: aHoraISO(h),
-          franjaHoraria: franjaDeHora(h),
-          barrio: form.barrio.trim(),
-          direccionExacta: form.direccionExacta.trim() || null,
-          latitud: form.latitud,
-          longitud: form.longitud,
-        });
+        if (conectado && publicacionId) {
+          await actualizarPublicacion(publicacionId, {
+            fechaSuceso: aFechaISO(f),
+            horaSuceso: aHoraISO(h),
+            franjaHoraria: franjaDeHora(h),
+            barrio: form.barrio.trim(),
+            direccionExacta: form.direccionExacta.trim() || null,
+            latitud: form.latitud,
+            longitud: form.longitud,
+          });
+        }
       }
 
       if (paso === 4) {
         if (fotos.length + fotosRemotas.length === 0) {
           return Alert.alert('Falta algo', 'Agregá al menos una foto');
         }
-        for (const foto of fotos) {
-          if (!fotosSubidas.includes(foto.uri)) {
-            await subirFoto(publicacionId, foto);
-            setFotosSubidas((prev) => [...prev, foto.uri]);
-          }
+        // Solo guardamos lo mínimo de cada foto (el resto del objeto de la cámara no hace falta).
+        const fotosLimpias = fotos.map((f) => ({ uri: f.uri, fileName: f.fileName, mimeType: f.mimeType }));
+        const item = {
+          idLocal: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          creadoEn: Date.now(),
+          tipo: form.tipo,
+          publicacionId,
+          datos: armarDatos(form),
+          fotos: fotosLimpias,
+          fotosSubidas,
+        };
+
+        if (!conectado) {
+          // SIN CONEXIÓN: queda en la cola, "pendiente de envío"
+          await agregarPendiente(user.usuarioId, item);
+          setGuardadaSinConexion(true);
+        } else {
+          // CON CONEXIÓN: se envía ahora; si falla a la mitad, recordamos hasta dónde llegó.
+          await procesarItem(item, (p) => {
+            setPublicacionId(p.publicacionId);
+            setFotosSubidas(p.fotosSubidas);
+          });
         }
-        await publicarPublicacion(publicacionId);
       }
 
       setPaso((p) => Math.min(p + 1, TOTAL_PASOS + 1));
@@ -260,10 +307,21 @@ export default function PublicarScreen() {
   if (paso > TOTAL_PASOS) {
     return (
       <View style={styles.centro}>
-        <Text style={styles.titulo}>¡Publicación #{publicacionId} publicada!</Text>
-        <Text style={styles.ayuda}>
-          Ya la pueden ver otros usuarios en el buscador. Vence en 30 días y podés renovarla.
-        </Text>
+        {guardadaSinConexion ? (
+          <>
+            <Text style={styles.titulo}>Guardada sin conexión</Text>
+            <Text style={styles.ayuda}>
+              Quedó pendiente de envío. Se va a publicar automáticamente cuando recuperes internet.
+            </Text>
+          </>
+        ) : (
+          <>
+            <Text style={styles.titulo}>¡Publicación #{publicacionId} publicada!</Text>
+            <Text style={styles.ayuda}>
+              Ya la pueden ver otros usuarios en el buscador. Vence en 30 días y podés renovarla.
+            </Text>
+          </>
+        )}
         <Pressable
           style={[styles.boton, { flex: 0, alignSelf: 'stretch', marginTop: 12 }]}
           onPress={reiniciar}
@@ -417,6 +475,11 @@ export default function PublicarScreen() {
               Este borrador ya tiene {fotosRemotas.length} foto(s) subida(s).
             </Text>
           )}
+          {!conectado && (
+            <Text style={styles.avisoSinConexion}>
+              Sin conexión: la publicación va a quedar pendiente de envío y se publicará sola cuando vuelva internet.
+            </Text>
+          )}
           <SelectorFotos fotos={fotos} onChange={setFotos} />
         </>
       )}
@@ -436,7 +499,11 @@ export default function PublicarScreen() {
           disabled={guardando}
         >
           <Text style={styles.botonTexto}>
-            {guardando ? 'Guardando…' : paso === TOTAL_PASOS ? 'Publicar' : 'Siguiente'}
+            {guardando
+              ? 'Guardando…'
+              : paso === TOTAL_PASOS
+                ? conectado ? 'Publicar' : 'Guardar para enviar'
+                : 'Siguiente'}
           </Text>
         </Pressable>
       </View>
@@ -451,6 +518,7 @@ const styles = StyleSheet.create({
   titulo: { fontSize: 20, fontWeight: 'bold', color: COLORS.text },
   ayuda: { color: COLORS.muted, textAlign: 'center' },
   ayudaIzq: { color: COLORS.muted },
+  avisoSinConexion: { color: '#92400e', backgroundColor: '#fef3c7', padding: 8, borderRadius: 6, fontSize: 13 },
   etiqueta: { color: COLORS.text, fontWeight: '600', marginTop: 4 },
   input: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 10, color: COLORS.text },
   inputGrande: { minHeight: 90, textAlignVertical: 'top' },
