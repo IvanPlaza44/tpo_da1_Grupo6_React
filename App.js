@@ -21,6 +21,7 @@ import BotonSeguir from './components/BotonSeguir';
 import Badge from './components/Badge';
 import useNovedades from './hooks/useNovedades';
 import PublicarScreen from './screens/PublicarScreen';
+import MisPublicacionesScreen from './screens/MisPublicacionesScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -64,6 +65,7 @@ const PANTALLAS = [
   { clave: 'historial', titulo: 'Historial', Componente: HistorialScreen },
   { clave: 'perfil', titulo: 'Mi Perfil', Componente: EditProfileScreen },
   { clave: 'publicar', titulo: 'Publicar', Componente: PublicarScreen },
+  { clave: 'mis-publicaciones', titulo: 'Mis publicaciones', Componente: MisPublicacionesScreen },
 ];
 
 function AuthenticatedApp() {
