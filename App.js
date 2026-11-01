@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, Button, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -21,7 +21,13 @@ import ReclamarScreen from './screens/ReclamarScreen';
 import BotonGuardarAlerta from './components/BotonGuardarAlerta';
 import BotonSeguir from './components/BotonSeguir';
 import Badge from './components/Badge';
+import BuscarFlow from './screens/BuscarFlow';
 import useNovedades from './hooks/useNovedades';
+import PublicarScreen from './screens/PublicarScreen';
+import MisPublicacionesScreen from './screens/MisPublicacionesScreen';
+import { ConexionProvider } from './context/ConexionContext';
+import BannerSinConexion from './components/BannerSinConexion';
+import SincronizadorPendientes from './components/SincronizadorPendientes';
 
 const Stack = createNativeStackNavigator();
 
@@ -91,6 +97,7 @@ function PruebaReclamo() {
 }
 
 const PANTALLAS = [
+    { clave: 'buscar', titulo: 'Buscar', Componente: BuscarFlow },
   { clave: 'alertas', titulo: 'Mis alertas', Componente: MisAlertasScreen },
   { clave: 'seguidas', titulo: 'Seguidas', Componente: SeguidasScreen },
   { clave: 'guardar', titulo: 'Probar guardar', Componente: PruebaGuardarAlerta },
@@ -98,6 +105,8 @@ const PANTALLAS = [
   { clave: 'reclamos', titulo: 'Mis reclamos', Componente: MisReclamosScreen },
   { clave: 'probarReclamo', titulo: 'Probar reclamo', Componente: PruebaReclamo },
   { clave: 'perfil', titulo: 'Mi Perfil', Componente: EditProfileScreen },
+  { clave: 'publicar', titulo: 'Publicar', Componente: PublicarScreen },
+  { clave: 'mis-publicaciones', titulo: 'Mis publicaciones', Componente: MisPublicacionesScreen },
 ];
 
 function AuthenticatedApp() {
@@ -121,6 +130,8 @@ function AuthenticatedApp() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <BannerSinConexion />
+      <SincronizadorPendientes />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.selector}>
         {PANTALLAS.map((p) => (
           <Pressable
@@ -146,6 +157,7 @@ function AuthenticatedApp() {
           onAbrirPublicacion={setDetalleId}
           onAbrirPerfil={setPerfilId}
           onNovedadesVistas={novedades.recargar}
+          onIrA={irA}
         />
       )}
       <StatusBar style="auto" />
@@ -186,11 +198,13 @@ function RootNavigator() {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <ProfileProvider>
-          <RootNavigator />
-        </ProfileProvider>
-      </AuthProvider>
+      <ConexionProvider>
+        <AuthProvider>
+          <ProfileProvider>
+            <RootNavigator />
+          </ProfileProvider>
+        </AuthProvider>
+      </ConexionProvider>
     </SafeAreaProvider>
   );
 }
