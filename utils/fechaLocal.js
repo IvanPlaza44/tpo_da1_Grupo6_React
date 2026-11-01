@@ -6,6 +6,7 @@ export const aFechaISO = (fecha) => {
   const d = String(fecha.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 };
+
 // "2026-11-01" -> Date local (sin el corrimiento de zona horaria de new Date("2026-11-01"))
 export const parseFechaISO = (texto) => {
   const [y, m, d] = texto.split('-').map(Number);
