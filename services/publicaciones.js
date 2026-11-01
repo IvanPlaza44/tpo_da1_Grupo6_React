@@ -32,3 +32,13 @@ export const publicarPublicacion = async (id) => {
   const response = await api.post(`/api/publicaciones/${id}/publicar`);
   return response.data;
 };
+
+export const obtenerPublicacion = async (id) => {
+  const response = await api.get(`/api/publicaciones/${id}`);
+  return response.data;
+};
+
+export const renovarPublicacion = async (id) => {
+  const response = await api.post(`/api/publicaciones/${id}/renovar`);
+  return response.data;
+};
