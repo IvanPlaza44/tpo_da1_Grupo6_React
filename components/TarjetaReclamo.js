@@ -22,7 +22,8 @@ function tiempoRestante(iso) {
 }
 
 // recibido: true si soy el publicador (veo la respuesta de verificación y puedo aceptar/rechazar).
-export default function TarjetaReclamo({ reclamo, recibido, ocupada, onAceptar, onRechazar, onPress }) {
+// sinConexion: true si no hay internet (aceptar/rechazar quedan deshabilitados, Punto 6).
+export default function TarjetaReclamo({ reclamo, recibido, ocupada, sinConexion, onAceptar, onRechazar, onPress }) {
   const estado = ESTADOS[reclamo.estado] || ESTADOS.PENDIENTE;
   const pendiente = reclamo.estado === 'PENDIENTE';
   const esMio = reclamo.publicacionTipo === 'ENCONTRADO';
@@ -69,6 +70,8 @@ export default function TarjetaReclamo({ reclamo, recibido, ocupada, onAceptar, 
         <View style={styles.acciones}>
           {ocupada ? (
             <ActivityIndicator color={COLORS.primary} />
+          ) : sinConexion ? (
+            <Text style={styles.sinConexion}>Necesitás conexión para aceptar o rechazar.</Text>
           ) : (
             <>
               <Pressable style={[styles.boton, styles.botonRechazar]} onPress={onRechazar}>
@@ -98,6 +101,7 @@ const styles = StyleSheet.create({
   etiqueta: { fontWeight: '600' },
   foto: { width: '100%', height: 160, borderRadius: 8, marginTop: 4 },
   acciones: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 8 },
+  sinConexion: { fontSize: 13, color: COLORS.muted, fontStyle: 'italic' },
   boton: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 8 },
   botonAceptar: { backgroundColor: COLORS.primary },
   botonAceptarTexto: { color: '#fff', fontWeight: '600' },

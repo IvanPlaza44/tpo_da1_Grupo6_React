@@ -52,7 +52,7 @@ function PruebaGuardarAlerta() {
   );
 }
 
-function PruebaDetalle({ publicacionId, onVolver }) {
+function PruebaDetalle({ publicacionId, onVolver, onReclamar }) {
   return (
     <View style={styles.prueba}>
       <Pressable onPress={onVolver}>
@@ -60,6 +60,8 @@ function PruebaDetalle({ publicacionId, onVolver }) {
       </Pressable>
       <Text style={styles.pruebaTexto}>Detalle provisorio de la publicación #{publicacionId}</Text>
       <BotonSeguir publicacionId={publicacionId} siguiendo />
+      {/* PROVISORIO: en el detalle real (Punto 4) van los botones "Es mío" / "Lo encontré" */}
+      <Button title="Reclamar (Es mío / Lo encontré)" onPress={() => onReclamar(publicacionId)} />
     </View>
   );
 }
@@ -97,7 +99,7 @@ function PruebaReclamo() {
 }
 
 const PANTALLAS = [
-    { clave: 'buscar', titulo: 'Buscar', Componente: BuscarFlow },
+  { clave: 'buscar', titulo: 'Buscar', Componente: BuscarFlow },
   { clave: 'alertas', titulo: 'Mis alertas', Componente: MisAlertasScreen },
   { clave: 'seguidas', titulo: 'Seguidas', Componente: SeguidasScreen },
   { clave: 'guardar', titulo: 'Probar guardar', Componente: PruebaGuardarAlerta },
@@ -113,12 +115,14 @@ function AuthenticatedApp() {
   const [actual, setActual] = useState(PANTALLAS[0].clave);
   const [detalleId, setDetalleId] = useState(null);
   const [perfilId, setPerfilId] = useState(null);
+  const [reclamarId, setReclamarId] = useState(null);
   const novedades = useNovedades();
   const { Componente } = PANTALLAS.find((p) => p.clave === actual);
 
   const irA = (clave) => {
     setDetalleId(null);
     setPerfilId(null);
+    setReclamarId(null);
     setActual(clave);
     novedades.recargar();
   };
@@ -147,8 +151,14 @@ function AuthenticatedApp() {
         ))}
       </ScrollView>
 
-      {detalleId ? (
-        <PruebaDetalle publicacionId={detalleId} onVolver={volverDelDetalle} />
+      {reclamarId ? (
+        <ReclamarScreen
+          publicacionId={reclamarId}
+          onVolver={() => setReclamarId(null)}
+          onEnviado={() => irA('reclamos')}
+        />
+      ) : detalleId ? (
+        <PruebaDetalle publicacionId={detalleId} onVolver={volverDelDetalle} onReclamar={setReclamarId} />
       ) : perfilId ? (
         <PublicProfileScreen usuarioId={perfilId} onVolver={() => setPerfilId(null)} />
       ) : (

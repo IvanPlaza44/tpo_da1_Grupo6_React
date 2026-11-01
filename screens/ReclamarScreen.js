@@ -15,10 +15,12 @@ import { COLORS } from '../config';
 import { crearReclamo, obtenerPublicacionParaReclamo } from '../services/reclamos';
 import { getErrorMessage } from '../services/api';
 import { EstadoCargando, EstadoError } from '../components/EstadoPantalla';
+import { useConexion } from '../hooks/useConexion';
 
 // Formulario de reclamo (Punto 7).
 // - Publicación ENCONTRADO → "Es mío": responder la pregunta de verificación; descripción y foto opcionales.
 // - Publicación PERDIDO → "Lo encontré": foto y barrio obligatorios; descripción opcional.
+// Sin conexión el envío queda deshabilitado (Punto 6).
 // Props: publicacionId; onVolver(); onEnviado(reclamo). Los conecta quien abre la pantalla
 // (por ejemplo, el detalle de la publicación del Punto 4).
 export default function ReclamarScreen({ publicacionId, onVolver, onEnviado }) {
@@ -31,6 +33,7 @@ export default function ReclamarScreen({ publicacionId, onVolver, onEnviado }) {
   const [mensaje, setMensaje] = useState('');
   const [foto, setFoto] = useState(null);
   const [enviando, setEnviando] = useState(false);
+  const { conectado } = useConexion();
 
   const cargar = async () => {
     setCargando(true);
@@ -92,6 +95,10 @@ export default function ReclamarScreen({ publicacionId, onVolver, onEnviado }) {
   };
 
   const enviar = async () => {
+    if (!conectado) {
+      Alert.alert('Sin conexión', 'Necesitás internet para enviar el reclamo.');
+      return;
+    }
     const problema = validar();
     if (problema) {
       Alert.alert('Faltan datos', problema);
@@ -209,10 +216,18 @@ export default function ReclamarScreen({ publicacionId, onVolver, onEnviado }) {
             Podés hacer hasta 3 reclamos por publicación. Si no te responden en 48 horas, el reclamo vence.
           </Text>
 
+          {!conectado ? (
+            <View style={styles.bloqueo}>
+              <Text style={styles.bloqueoTexto}>
+                Sin conexión: necesitás internet para enviar el reclamo.
+              </Text>
+            </View>
+          ) : null}
+
           <Pressable
-            style={[styles.botonEnviar, enviando && styles.botonDeshabilitado]}
+            style={[styles.botonEnviar, (enviando || !conectado) && styles.botonDeshabilitado]}
             onPress={enviar}
-            disabled={enviando}
+            disabled={enviando || !conectado}
           >
             {enviando ? (
               <ActivityIndicator color="#fff" />
