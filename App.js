@@ -19,9 +19,9 @@ import HistorialScreen from './screens/HistorialScreen';
 import MisReclamosScreen from './screens/MisReclamosScreen';
 import ReclamarScreen from './screens/ReclamarScreen';
 import BotonGuardarAlerta from './components/BotonGuardarAlerta';
-import BotonSeguir from './components/BotonSeguir';
 import Badge from './components/Badge';
 import BuscarFlow from './screens/BuscarFlow';
+import DetalleScreen from './screens/DetalleScreen';
 import useNovedades from './hooks/useNovedades';
 import PublicarScreen from './screens/PublicarScreen';
 import MisPublicacionesScreen from './screens/MisPublicacionesScreen';
@@ -52,21 +52,8 @@ function PruebaGuardarAlerta() {
   );
 }
 
-function PruebaDetalle({ publicacionId, onVolver, onReclamar }) {
-  return (
-    <View style={styles.prueba}>
-      <Pressable onPress={onVolver}>
-        <Text style={styles.volver}>‹ Volver</Text>
-      </Pressable>
-      <Text style={styles.pruebaTexto}>Detalle provisorio de la publicación #{publicacionId}</Text>
-      <BotonSeguir publicacionId={publicacionId} siguiendo />
-      {/* PROVISORIO: en el detalle real (Punto 4) van los botones "Es mío" / "Lo encontré" */}
-      <Button title="Reclamar (Es mío / Lo encontré)" onPress={() => onReclamar(publicacionId)} />
-    </View>
-  );
-}
-
-// PROVISORIO: abre el formulario de reclamo hasta que exista el detalle de publicación (Punto 4).
+// PROVISORIO: abre el formulario de reclamo escribiendo un id (sirve para probar con mocks).
+// Sacar antes de la entrega: el camino real es Buscar → Detalle → "Es mío" / "Lo encontré".
 function PruebaReclamo() {
   const [idTexto, setIdTexto] = useState('');
   const [abierto, setAbierto] = useState(null);
@@ -152,15 +139,22 @@ function AuthenticatedApp() {
       </ScrollView>
 
       {reclamarId ? (
+        // Formulario de reclamo (Punto 7). "Volver" regresa al detalle; al enviar, va a Mis reclamos.
         <ReclamarScreen
           publicacionId={reclamarId}
           onVolver={() => setReclamarId(null)}
           onEnviado={() => irA('reclamos')}
         />
-      ) : detalleId ? (
-        <PruebaDetalle publicacionId={detalleId} onVolver={volverDelDetalle} onReclamar={setReclamarId} />
       ) : perfilId ? (
         <PublicProfileScreen usuarioId={perfilId} onVolver={() => setPerfilId(null)} />
+      ) : detalleId ? (
+        <DetalleScreen
+          publicacionId={detalleId}
+          onVolver={volverDelDetalle}
+          onAbrirPerfil={setPerfilId}
+          onIrA={irA}
+          onReclamar={(publicacion) => setReclamarId(publicacion.id)}
+        />
       ) : (
         <Componente
           key={actual}
@@ -170,6 +164,7 @@ function AuthenticatedApp() {
           onIrA={irA}
         />
       )}
+
       <StatusBar style="auto" />
     </SafeAreaView>
   );
