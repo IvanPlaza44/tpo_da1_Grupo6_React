@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -20,6 +20,7 @@ import BotonGuardarAlerta from './components/BotonGuardarAlerta';
 import BotonSeguir from './components/BotonSeguir';
 import Badge from './components/Badge';
 import useNovedades from './hooks/useNovedades';
+import PublicarScreen from './screens/PublicarScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -62,6 +63,7 @@ const PANTALLAS = [
   { clave: 'guardar', titulo: 'Probar guardar', Componente: PruebaGuardarAlerta },
   { clave: 'historial', titulo: 'Historial', Componente: HistorialScreen },
   { clave: 'perfil', titulo: 'Mi Perfil', Componente: EditProfileScreen },
+  { clave: 'publicar', titulo: 'Publicar', Componente: PublicarScreen },
 ];
 
 function AuthenticatedApp() {
