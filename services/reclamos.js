@@ -1,4 +1,5 @@
 import api from './api';
+import { obtenerPublicacion } from './publicaciones';
 
 // Reclamos (Punto 7).
 // "Es mío" = reclamo sobre una publicación ENCONTRADO.
@@ -119,8 +120,8 @@ let mockRecibidos = [
 ];
 let mockSiguienteId = 200;
 
-// Datos mínimos de una publicación que necesita el formulario de reclamo.
-// En la app real salen de GET /api/publicaciones/{id} (PublicacionDetalleDto).
+// Publicaciones de prueba propias del formulario de reclamo.
+// Cualquier otra se pide al mismo servicio que usa el detalle (Punto 4).
 const mockPublicaciones = {
   10: { id: 10, titulo: 'DNI encontrado en plaza', tipo: 'ENCONTRADO', estado: 'EN_RECLAMO', preguntaVerificacion: '¿Qué apellido figura en el DNI?', esPropia: false, miReclamoEstado: 'PENDIENTE' },
   20: { id: 20, titulo: 'Billetera marrón', tipo: 'ENCONTRADO', estado: 'EN_RECLAMO', preguntaVerificacion: '¿Qué tiene pegado adentro?', esPropia: true, miReclamoEstado: null },
@@ -158,15 +159,14 @@ export const listarReclamosRecibidos = async () => {
 // Lo que el formulario necesita saber de la publicación: tipo, título, pregunta,
 // si es propia y si ya tengo un reclamo (esPropia y miReclamoEstado los calcula el backend).
 export const obtenerPublicacionParaReclamo = async (publicacionId) => {
-  if (SOLO_MOCKS) {
+  // Mis publicaciones de prueba (10, 20, 30, 31) siguen funcionando con mocks.
+  if (SOLO_MOCKS && mockPublicaciones[publicacionId]) {
     await demora();
-    if (MODO_MOCK === 'error') throw new Error('Error simulado');
-    const publicacion = mockPublicaciones[publicacionId];
-    if (!publicacion) throw errorMock(404, 'Publicación no encontrada');
-    return publicacion;
+    return mockPublicaciones[publicacionId];
   }
-  const { data } = await api.get(`/api/publicaciones/${publicacionId}`);
-  return data;
+  // Para todo lo demás uso el mismo servicio que el detalle (Punto 4), así el formulario
+  // ve exactamente la misma publicación que se mostró, con mocks o con el back real.
+  return obtenerPublicacion(publicacionId);
 };
 
 // Crea el reclamo. Campos según el caso:
@@ -267,4 +267,4 @@ export const rechazarReclamo = async (publicacionId, reclamoId) => {
   }
   const { data } = await api.patch(`/api/publicaciones/${publicacionId}/reclamos/${reclamoId}/rechazar`);
   return data;
-};
+}; 
