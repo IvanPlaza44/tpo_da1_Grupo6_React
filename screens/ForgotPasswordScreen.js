@@ -4,6 +4,8 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
+  Keyboard,
   StyleSheet,
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -54,6 +56,7 @@ export default function ForgotPasswordScreen({ navigation }) {
   }, [passwordNueva, confirmPassword]);
 
   const extractBackendError = (error, fallback) =>
+    error?.response?.data?.mensaje ||
     error?.response?.data?.message ||
     error?.response?.data?.error ||
     (typeof error?.response?.data === 'string' ? error.response.data : null) ||
@@ -70,7 +73,7 @@ export default function ForgotPasswordScreen({ navigation }) {
 
     setLoading(true);
     try {
-      await authService.requestPasswordRecovery({ email: email.trim() });
+      await authService.solicitarRecuperacionPassword(email.trim());
       setStep(2);
       setCooldown(60);
       setInfoMsg(`Enviamos un código a ${email.trim()}`);
@@ -89,7 +92,7 @@ export default function ForgotPasswordScreen({ navigation }) {
     setInfoMsg(null);
     setResending(true);
     try {
-      await authService.resendPasswordRecoveryOtp({ email: email.trim() });
+      await authService.reenviarRecuperacionPassword(email.trim());
       setCooldown(60);
       setInfoMsg('Código reenviado a tu correo.');
     } catch (error) {
@@ -125,7 +128,7 @@ export default function ForgotPasswordScreen({ navigation }) {
 
     setLoading(true);
     try {
-      await authService.resetPassword({
+      await authService.restablecerPassword({
         email: email.trim(),
         codigo: codigo.trim(),
         passwordNueva,
@@ -149,11 +152,13 @@ export default function ForgotPasswordScreen({ navigation }) {
       style={styles.keyboardContainer}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView
-        contentContainerStyle={styles.scrollContainer}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}
+        >
         <View style={styles.headerSection}>
           <Text style={styles.title}>Recuperar contraseña</Text>
           <Text style={styles.subtitle}>Paso {step} de 3</Text>
@@ -390,7 +395,8 @@ export default function ForgotPasswordScreen({ navigation }) {
         >
           <Text style={styles.backText}>Volver al inicio de sesión</Text>
         </TouchableOpacity>
-      </ScrollView>
+        </ScrollView>
+      </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
   );
 }

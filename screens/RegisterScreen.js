@@ -4,6 +4,8 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
+  Keyboard,
   StyleSheet,
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -11,13 +13,13 @@ import {
   ScrollView,
 } from 'react-native';
 import { useAuth } from '../hooks/useAuth';
-import * as authService from '../services/auth';
+import api from '../services/api';
 import { COLORS } from '../config';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function RegisterScreen({ navigation }) {
-  const { signUp } = useAuth();
+  const { login } = useAuth();
 
   const [step, setStep] = useState(1);
   const [email, setEmail] = useState('');
@@ -68,6 +70,7 @@ export default function RegisterScreen({ navigation }) {
   }, [email, password, confirmPassword]);
 
   const extractBackendError = (error, fallback) =>
+    error?.response?.data?.mensaje ||
     error?.response?.data?.message ||
     error?.response?.data?.error ||
     (typeof error?.response?.data === 'string' ? error.response.data : null) ||
@@ -92,7 +95,7 @@ export default function RegisterScreen({ navigation }) {
 
     setLoading(true);
     try {
-      await authService.requestOtp({ email: email.trim() });
+      await api.post('/api/auth/otp/solicitar', { email: email.trim() });
       setStep(2);
       setCooldown(60);
       setInfoMsg(`Enviamos un código a ${email.trim()}`);
@@ -114,7 +117,7 @@ export default function RegisterScreen({ navigation }) {
     setInfoMsg(null);
     setResending(true);
     try {
-      await authService.resendOtp({ email: email.trim() });
+      await api.post('/api/auth/otp/reenviar', { email: email.trim() });
       setCooldown(60);
       setInfoMsg('Código reenviado a tu correo.');
     } catch (error) {
@@ -137,15 +140,17 @@ export default function RegisterScreen({ navigation }) {
 
     setLoading(true);
     try {
-      await authService.verifyOtp({
+      await api.post('/api/auth/otp/verificar', {
         email: email.trim(),
         codigo: codigoOtp.trim(),
       });
 
-      await signUp({
+      await api.post('/api/auth/registro', {
         usernameOrEmail: email.trim(),
         password,
       });
+
+      await login(email.trim(), password);
     } catch (error) {
       setErrorMsg(
         extractBackendError(
@@ -191,11 +196,13 @@ export default function RegisterScreen({ navigation }) {
       style={styles.keyboardContainer}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView
-        contentContainerStyle={styles.scrollContainer}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}
+        >
         <View style={styles.headerSection}>
           <Text style={styles.title}>Crear cuenta</Text>
           <Text style={styles.subtitle}>Paso {step} de 2</Text>
@@ -440,7 +447,8 @@ export default function RegisterScreen({ navigation }) {
             <Text style={styles.footerLink}>Iniciá sesión</Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
+        </ScrollView>
+      </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
   );
 }
