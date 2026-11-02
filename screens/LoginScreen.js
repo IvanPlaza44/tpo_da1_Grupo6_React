@@ -4,6 +4,8 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
+  Keyboard,
   StyleSheet,
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -15,10 +17,10 @@ import { COLORS } from '../config';
 
 export default function LoginScreen({ navigation }) {
   const {
-    signIn,
-    biometricAvailable,
+    login,
     biometricEnabled,
-    authenticateWithBiometrics,
+    hasBiometricSession,
+    loginWithBiometrics,
   } = useAuth();
 
   const [usernameOrEmail, setUsernameOrEmail] = useState('');
@@ -29,9 +31,11 @@ export default function LoginScreen({ navigation }) {
   const [biometricLoading, setBiometricLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
 
-  const canSubmit = usernameOrEmail.trim().length > 0 && password.length > 0 && !loading;
+  const canSubmit =
+    usernameOrEmail.trim().length > 0 && password.length > 0 && !loading;
 
   const handleLogin = async () => {
+    Keyboard.dismiss();
     setErrorMsg(null);
     if (!usernameOrEmail.trim() || !password) {
       setErrorMsg('Completá tu usuario/correo y contraseña.');
@@ -40,12 +44,10 @@ export default function LoginScreen({ navigation }) {
 
     setLoading(true);
     try {
-      await signIn({
-        usernameOrEmail: usernameOrEmail.trim(),
-        password,
-      });
+      await login(usernameOrEmail.trim(), password);
     } catch (error) {
       const backendMsg =
+        error?.response?.data?.mensaje ||
         error?.response?.data?.message ||
         error?.response?.data?.error ||
         (typeof error?.response?.data === 'string' ? error.response.data : null);
@@ -56,15 +58,18 @@ export default function LoginScreen({ navigation }) {
   };
 
   const handleBiometricLogin = async () => {
+    Keyboard.dismiss();
     setErrorMsg(null);
     setBiometricLoading(true);
     try {
-      const success = await authenticateWithBiometrics();
-      if (!success) {
+      const result = await loginWithBiometrics();
+      if (!result) {
         setErrorMsg('No se pudo verificar la identidad biométrica.');
       }
-    } catch {
-      setErrorMsg('Error al intentar autenticación biométrica.');
+    } catch (error) {
+      setErrorMsg(
+        error?.message || 'Error al intentar autenticación biométrica.'
+      );
     } finally {
       setBiometricLoading(false);
     }
@@ -75,11 +80,13 @@ export default function LoginScreen({ navigation }) {
       style={styles.keyboardContainer}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView
-        contentContainerStyle={styles.scrollContainer}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}
+        >
         <View style={styles.headerSection}>
           <View style={styles.brandMark}>
             <Text style={styles.brandMarkText}>H</Text>
@@ -182,7 +189,7 @@ export default function LoginScreen({ navigation }) {
             )}
           </TouchableOpacity>
 
-          {biometricAvailable && biometricEnabled && (
+          {biometricEnabled && hasBiometricSession && (
             <TouchableOpacity
               style={styles.biometricButton}
               onPress={handleBiometricLogin}
@@ -206,7 +213,8 @@ export default function LoginScreen({ navigation }) {
             <Text style={styles.footerLink}>Registrate</Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
+        </ScrollView>
+      </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
   );
 }
