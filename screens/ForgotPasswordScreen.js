@@ -1,294 +1,570 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
   TextInput,
-  Button,
-  Pressable,
+  TouchableOpacity,
   StyleSheet,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
   Alert,
 } from 'react-native';
-import {
-  solicitarRecuperacionPassword,
-  reenviarRecuperacionPassword,
-  restablecerPassword,
-} from '../services/auth';
+import * as authService from '../services/auth';
+import { COLORS } from '../config';
 
-export const ForgotPasswordScreen = ({ navigation }) => {
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export default function ForgotPasswordScreen({ navigation }) {
   const [step, setStep] = useState(1);
   const [email, setEmail] = useState('');
   const [codigo, setCodigo] = useState('');
   const [passwordNueva, setPasswordNueva] = useState('');
-  const [confirmarPassword, setConfirmarPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [focusedField, setFocusedField] = useState(null);
 
-  const handleSolicitarCodigo = async () => {
-    if (!email.trim()) {
-      Alert.alert('Campo requerido', 'Por favor ingresá tu correo electrónico.');
+  const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+  const [errorMsg, setErrorMsg] = useState(null);
+  const [infoMsg, setInfoMsg] = useState(null);
+
+  useEffect(() => {
+    if (cooldown <= 0) return undefined;
+    const timer = setInterval(() => {
+      setCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
+
+  const emailValido = useMemo(() => EMAIL_REGEX.test(email.trim()), [email]);
+
+  const passwordChecks = useMemo(() => {
+    const hasMinLength = passwordNueva.length >= 6;
+    const hasMatch =
+      passwordNueva.length > 0 && passwordNueva === confirmPassword;
+    return {
+      hasMinLength,
+      hasMatch,
+      canSubmit: hasMinLength && hasMatch,
+    };
+  }, [passwordNueva, confirmPassword]);
+
+  const extractBackendError = (error, fallback) =>
+    error?.response?.data?.message ||
+    error?.response?.data?.error ||
+    (typeof error?.response?.data === 'string' ? error.response.data : null) ||
+    fallback;
+
+  const handleRequestCode = async () => {
+    setErrorMsg(null);
+    setInfoMsg(null);
+
+    if (!emailValido) {
+      setErrorMsg('Ingresá un correo electrónico válido.');
       return;
     }
 
+    setLoading(true);
     try {
-      setLoading(true);
-      await solicitarRecuperacionPassword(email);
-      Alert.alert(
-        'Código enviado',
-        'Si el correo está registrado, recibirás un código de verificación.'
-      );
+      await authService.requestPasswordRecovery({ email: email.trim() });
       setStep(2);
+      setCooldown(60);
+      setInfoMsg(`Enviamos un código a ${email.trim()}`);
     } catch (error) {
-      const msg =
-        error.response?.data?.mensaje ||
-        error.response?.data?.message ||
-        'No se pudo enviar el código de recuperación.';
-      Alert.alert('Error', msg);
+      setErrorMsg(
+        extractBackendError(error, 'No se pudo enviar el código.')
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  const handleReenviarCodigo = async () => {
+  const handleResendRecoveryOtp = async () => {
+    if (cooldown > 0 || resending) return;
+    setErrorMsg(null);
+    setInfoMsg(null);
+    setResending(true);
     try {
-      setLoading(true);
-      await reenviarRecuperacionPassword(email);
-      Alert.alert('Código reenviado', 'Se envió un nuevo código a tu correo electrónico.');
+      await authService.resendPasswordRecoveryOtp({ email: email.trim() });
+      setCooldown(60);
+      setInfoMsg('Código reenviado a tu correo.');
     } catch (error) {
-      const msg =
-        error.response?.data?.mensaje ||
-        error.response?.data?.message ||
-        'No se pudo reenviar el código.';
-      Alert.alert('Error', msg);
+      setErrorMsg(
+        extractBackendError(error, 'No se pudo reenviar el código.')
+      );
     } finally {
-      setLoading(false);
+      setResending(false);
     }
   };
 
-  const handleContinuarPaso3 = () => {
-    if (!codigo.trim()) {
-      Alert.alert('Campo requerido', 'Por favor ingresá el código recibido.');
+  const handleContinueToPassword = () => {
+    setErrorMsg(null);
+    if (!codigo.trim() || codigo.trim().length < 4) {
+      setErrorMsg('Ingresá el código recibido.');
       return;
     }
     setStep(3);
   };
 
-  const handleRestablecerPassword = async () => {
-    if (!passwordNueva.trim() || !confirmarPassword.trim()) {
-      Alert.alert('Campos requeridos', 'Por favor completá y confirmá la nueva contraseña.');
+  const handleResetPassword = async () => {
+    setErrorMsg(null);
+    setInfoMsg(null);
+
+    if (!passwordChecks.hasMinLength) {
+      setErrorMsg('La contraseña debe tener al menos 6 caracteres.');
+      return;
+    }
+    if (!passwordChecks.hasMatch) {
+      setErrorMsg('Las contraseñas no coinciden.');
       return;
     }
 
-    if (passwordNueva !== confirmarPassword) {
-      Alert.alert('Error', 'Las contraseñas no coinciden.');
-      return;
-    }
-
+    setLoading(true);
     try {
-      setLoading(true);
-      await restablecerPassword({
-        email,
-        codigo,
+      await authService.resetPassword({
+        email: email.trim(),
+        codigo: codigo.trim(),
         passwordNueva,
       });
-
       Alert.alert(
-        '¡Contraseña actualizada!',
-        'Tu contraseña se restableció correctamente. Ya podés iniciar sesión.',
-        [{ text: 'Ir al Login', onPress: () => navigation.navigate('Login') }]
+        'Contraseña actualizada',
+        'Ya podés iniciar sesión con tu nueva clave.',
+        [{ text: 'Ir al login', onPress: () => navigation.navigate('Login') }]
       );
     } catch (error) {
-      const msg =
-        error.response?.data?.mensaje ||
-        error.response?.data?.message ||
-        'El código es inválido o expiró.';
-      Alert.alert('Error al restablecer', msg);
+      setErrorMsg(
+        extractBackendError(error, 'Código inválido o vencido.')
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      {step === 1 && (
-        <>
-          <Text style={styles.title}>Recuperar Contraseña</Text>
-          <Text style={styles.subtitle}>
-            Ingresá tu correo electrónico y te enviaremos un código para restablecer tu contraseña.
-          </Text>
+    <KeyboardAvoidingView
+      style={styles.keyboardContainer}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.headerSection}>
+          <Text style={styles.title}>Recuperar contraseña</Text>
+          <Text style={styles.subtitle}>Paso {step} de 3</Text>
+        </View>
 
-          <TextInput
-            style={styles.input}
-            placeholder="Correo electrónico"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
+        <View style={styles.progressBarTrack}>
+          <View
+            style={[
+              styles.progressBarFill,
+              { width: `${(step / 3) * 100}%` },
+            ]}
           />
+        </View>
 
-          <View style={styles.buttonContainer}>
-            <Button
-              title={loading ? 'Enviando...' : 'Enviar código'}
-              onPress={handleSolicitarCodigo}
-              disabled={loading}
-            />
-          </View>
-        </>
-      )}
+        <View style={styles.card}>
+          {errorMsg ? (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorText}>{errorMsg}</Text>
+            </View>
+          ) : null}
 
-      {step === 2 && (
-        <>
-          <Text style={styles.title}>Ingresar Código</Text>
-          <Text style={styles.subtitle}>
-            Ingresá el código OTP que enviamos a {email}.
-          </Text>
+          {infoMsg ? (
+            <View style={styles.infoBanner}>
+              <Text style={styles.infoText}>{infoMsg}</Text>
+            </View>
+          ) : null}
 
-          <TextInput
-            style={styles.input}
-            placeholder="Código de verificación"
-            value={codigo}
-            onChangeText={setCodigo}
-            keyboardType="number-pad"
-          />
+          {step === 1 && (
+            <>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.label}>Correo electrónico</Text>
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    focusedField === 'email' && styles.inputWrapperFocused,
+                  ]}
+                >
+                  <TextInput
+                    style={styles.inputField}
+                    placeholder="nombre@correo.com"
+                    placeholderTextColor="#9ca3af"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    value={email}
+                    onFocus={() => setFocusedField('email')}
+                    onBlur={() => setFocusedField(null)}
+                    onChangeText={(val) => {
+                      setEmail(val);
+                      if (errorMsg) setErrorMsg(null);
+                    }}
+                  />
+                </View>
+              </View>
 
-          <View style={styles.buttonContainer}>
-            <Button
-              title="Continuar"
-              onPress={handleContinuarPaso3}
-              disabled={loading}
-            />
-          </View>
+              <TouchableOpacity
+                style={[
+                  styles.primaryButton,
+                  (!emailValido || loading) && styles.buttonDisabled,
+                ]}
+                onPress={handleRequestCode}
+                disabled={!emailValido || loading}
+                activeOpacity={0.85}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#ffffff" />
+                ) : (
+                  <Text style={styles.primaryButtonText}>Enviar código</Text>
+                )}
+              </TouchableOpacity>
+            </>
+          )}
 
-          <View style={styles.buttonContainer}>
-            <Button
-              title={loading ? 'Reenviando...' : 'Reenviar código'}
-              onPress={handleReenviarCodigo}
-              disabled={loading}
-              color="#6b7280"
-            />
-          </View>
-        </>
-      )}
+          {step === 2 && (
+            <>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.label}>Código de verificación</Text>
+                <TextInput
+                  style={[
+                    styles.otpInput,
+                    focusedField === 'otp' && styles.inputWrapperFocused,
+                  ]}
+                  placeholder="000000"
+                  placeholderTextColor="#cbd5e1"
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  value={codigo}
+                  onFocus={() => setFocusedField('otp')}
+                  onBlur={() => setFocusedField(null)}
+                  onChangeText={(val) => {
+                    setCodigo(val.replace(/[^0-9]/g, ''));
+                    if (errorMsg) setErrorMsg(null);
+                  }}
+                />
+              </View>
 
-      {step === 3 && (
-        <>
-          <Text style={styles.title}>Nueva Contraseña</Text>
-          <Text style={styles.subtitle}>
-            Definí tu nueva contraseña para la cuenta {email}.
-          </Text>
+              <TouchableOpacity
+                style={[
+                  styles.primaryButton,
+                  codigo.trim().length < 4 && styles.buttonDisabled,
+                ]}
+                onPress={handleContinueToPassword}
+                disabled={codigo.trim().length < 4}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.primaryButtonText}>Continuar</Text>
+              </TouchableOpacity>
 
-          <View style={styles.passwordContainer}>
-            <TextInput
-              style={styles.passwordInput}
-              placeholder="Nueva contraseña"
-              value={passwordNueva}
-              onChangeText={setPasswordNueva}
-              secureTextEntry={!showPassword}
-              autoCapitalize="none"
-            />
-            <Pressable
-              onPress={() => setShowPassword((prev) => !prev)}
-              style={styles.eyeButton}
-              hitSlop={8}
-            >
-              <Text style={styles.eyeText}>{showPassword ? '🙈' : '👁️'}</Text>
-            </Pressable>
-          </View>
+              <View style={styles.secondaryActions}>
+                <TouchableOpacity
+                  onPress={handleResendRecoveryOtp}
+                  disabled={resending || cooldown > 0}
+                >
+                  <Text
+                    style={[
+                      styles.secondaryLink,
+                      cooldown > 0 && styles.linkMuted,
+                    ]}
+                  >
+                    {resending
+                      ? 'Reenviando...'
+                      : cooldown > 0
+                      ? `Reenviar en ${cooldown}s`
+                      : 'Reenviar código'}
+                  </Text>
+                </TouchableOpacity>
 
-          <View style={styles.passwordContainer}>
-            <TextInput
-              style={styles.passwordInput}
-              placeholder="Confirmar nueva contraseña"
-              value={confirmarPassword}
-              onChangeText={setConfirmarPassword}
-              secureTextEntry={!showConfirmPassword}
-              autoCapitalize="none"
-            />
-            <Pressable
-              onPress={() => setShowConfirmPassword((prev) => !prev)}
-              style={styles.eyeButton}
-              hitSlop={8}
-            >
-              <Text style={styles.eyeText}>{showConfirmPassword ? '🙈' : '👁️'}</Text>
-            </Pressable>
-          </View>
+                <TouchableOpacity
+                  onPress={() => {
+                    setStep(1);
+                    setErrorMsg(null);
+                    setInfoMsg(null);
+                  }}
+                >
+                  <Text style={styles.mutedLink}>Cambiar correo</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
 
-          <View style={styles.buttonContainer}>
-            <Button
-              title={loading ? 'Guardando...' : 'Guardar nueva contraseña'}
-              onPress={handleRestablecerPassword}
-              disabled={loading}
-            />
-          </View>
+          {step === 3 && (
+            <>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.label}>Nueva contraseña</Text>
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    focusedField === 'password' && styles.inputWrapperFocused,
+                  ]}
+                >
+                  <TextInput
+                    style={styles.inputField}
+                    placeholder="Mínimo 6 caracteres"
+                    placeholderTextColor="#9ca3af"
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                    value={passwordNueva}
+                    onFocus={() => setFocusedField('password')}
+                    onBlur={() => setFocusedField(null)}
+                    onChangeText={(val) => {
+                      setPasswordNueva(val);
+                      if (errorMsg) setErrorMsg(null);
+                    }}
+                  />
+                  <TouchableOpacity
+                    style={styles.actionBtn}
+                    onPress={() => setShowPassword((prev) => !prev)}
+                  >
+                    <Text style={styles.toggleText}>
+                      {showPassword ? 'Ocultar' : 'Ver'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
 
-          <View style={styles.buttonContainer}>
-            <Button
-              title="Volver al paso anterior"
-              onPress={() => setStep(2)}
-              disabled={loading}
-              color="#6b7280"
-            />
-          </View>
-        </>
-      )}
-    </View>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.label}>Repetir contraseña</Text>
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    focusedField === 'confirm' && styles.inputWrapperFocused,
+                  ]}
+                >
+                  <TextInput
+                    style={styles.inputField}
+                    placeholder="Repetí la contraseña"
+                    placeholderTextColor="#9ca3af"
+                    secureTextEntry={!showConfirmPassword}
+                    autoCapitalize="none"
+                    value={confirmPassword}
+                    onFocus={() => setFocusedField('confirm')}
+                    onBlur={() => setFocusedField(null)}
+                    onChangeText={(val) => {
+                      setConfirmPassword(val);
+                      if (errorMsg) setErrorMsg(null);
+                    }}
+                  />
+                  <TouchableOpacity
+                    style={styles.actionBtn}
+                    onPress={() => setShowConfirmPassword((prev) => !prev)}
+                  >
+                    <Text style={styles.toggleText}>
+                      {showConfirmPassword ? 'Ocultar' : 'Ver'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={[
+                  styles.primaryButton,
+                  (!passwordChecks.canSubmit || loading) &&
+                    styles.buttonDisabled,
+                ]}
+                onPress={handleResetPassword}
+                disabled={!passwordChecks.canSubmit || loading}
+                activeOpacity={0.85}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#ffffff" />
+                ) : (
+                  <Text style={styles.primaryButtonText}>
+                    Guardar contraseña
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+
+        <TouchableOpacity
+          style={styles.backRow}
+          onPress={() => navigation.navigate('Login')}
+        >
+          <Text style={styles.backText}>Volver al inicio de sesión</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  container: {
+  keyboardContainer: {
     flex: 1,
+    backgroundColor: '#f8fafc',
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingVertical: 36,
     justifyContent: 'center',
-    padding: 20,
-    backgroundColor: '#fff',
+  },
+  headerSection: {
+    marginBottom: 14,
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    textAlign: 'center',
+    fontWeight: '800',
+    color: '#0f172a',
+    letterSpacing: -0.4,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginBottom: 24,
-    textAlign: 'center',
+    fontSize: 13,
+    color: '#64748b',
+    marginTop: 4,
+    fontWeight: '500',
   },
-  input: {
-    height: 48,
-    borderColor: '#ccc',
+  progressBarTrack: {
+    height: 4,
+    backgroundColor: '#e2e8f0',
+    borderRadius: 2,
+    marginBottom: 22,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: COLORS.primary,
+    borderRadius: 2,
+  },
+  card: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 22,
     borderWidth: 1,
-    borderRadius: 8,
-    marginBottom: 16,
-    paddingHorizontal: 12,
+    borderColor: '#e2e8f0',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  passwordContainer: {
+  errorBanner: {
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    marginBottom: 16,
+  },
+  errorText: {
+    color: '#b91c1c',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  infoBanner: {
+    backgroundColor: '#eff6ff',
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    marginBottom: 16,
+  },
+  infoText: {
+    color: '#1d4ed8',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  fieldGroup: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#334155',
+    marginBottom: 6,
+  },
+  inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 48,
-    borderColor: '#ccc',
+    backgroundColor: '#f8fafc',
     borderWidth: 1,
-    borderRadius: 8,
-    marginBottom: 16,
-    paddingLeft: 12,
-    paddingRight: 4,
+    borderColor: '#cbd5e1',
+    borderRadius: 10,
+    paddingHorizontal: 14,
   },
-  passwordInput: {
+  inputWrapperFocused: {
+    borderColor: COLORS.primary,
+    backgroundColor: '#ffffff',
+  },
+  inputField: {
     flex: 1,
-    height: '100%',
+    paddingVertical: 12,
+    fontSize: 15,
+    color: '#0f172a',
   },
-  eyeButton: {
-    paddingHorizontal: 10,
-    height: '100%',
-    justifyContent: 'center',
+  actionBtn: {
+    paddingLeft: 10,
+    paddingVertical: 6,
+  },
+  toggleText: {
+    fontSize: 13,
+    color: COLORS.primary,
+    fontWeight: '600',
+  },
+  otpInput: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 10,
+    paddingVertical: 14,
+    fontSize: 22,
+    fontWeight: '700',
+    letterSpacing: 8,
+    textAlign: 'center',
+    color: '#0f172a',
+  },
+  primaryButton: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  buttonDisabled: {
+    opacity: 0.5,
+  },
+  primaryButtonText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  secondaryActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+  },
+  secondaryLink: {
+    color: COLORS.primary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  linkMuted: {
+    color: '#94a3b8',
+  },
+  mutedLink: {
+    color: '#64748b',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  backRow: {
+    marginTop: 24,
     alignItems: 'center',
   },
-  eyeText: {
-    fontSize: 18,
-  },
-  buttonContainer: {
-    marginBottom: 12,
+  backText: {
+    color: '#64748b',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
-
-export default ForgotPasswordScreen;

@@ -1,85 +1,39 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
+  View,
   Text,
   TextInput,
-  View,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from 'react-native';
+import { useAuth } from '../hooks/useAuth';
+import * as authService from '../services/auth';
 import { COLORS } from '../config';
-import api from '../services/api';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function evaluarFortalezaPassword(password) {
-  if (!password) {
-    return { nivel: 0, etiqueta: 'Sin ingresar', color: '#d1d5db', porcentaje: '0%' };
-  }
+export default function RegisterScreen({ navigation }) {
+  const { signUp } = useAuth();
 
-  let puntos = 0;
-  if (password.length >= 6) puntos += 1;
-  if (password.length >= 8) puntos += 1;
-  if (/[A-Za-z]/.test(password) && /\d/.test(password)) puntos += 1;
-  if (/[^A-Za-z0-9]/.test(password) || (/[a-z]/.test(password) && /[A-Z]/.test(password))) {
-    puntos += 1;
-  }
-
-  if (puntos <= 1) {
-    return { nivel: 1, etiqueta: 'Débil', color: '#dc2626', porcentaje: '33%' };
-  }
-  if (puntos <= 2) {
-    return { nivel: 2, etiqueta: 'Media', color: '#f59e0b', porcentaje: '66%' };
-  }
-  return { nivel: 3, etiqueta: 'Fuerte', color: '#16a34a', porcentaje: '100%' };
-}
-
-function RequisitoItem({ cumplido, texto }) {
-  return (
-    <View style={styles.requisitoFila}>
-      <View
-        style={[
-          styles.requisitoCirculo,
-          cumplido ? styles.requisitoCirculoOk : styles.requisitoCirculoPendiente,
-        ]}
-      >
-        <Text
-          style={[
-            styles.requisitoIcono,
-            cumplido ? styles.requisitoIconoOk : styles.requisitoIconoPendiente,
-          ]}
-        >
-          {cumplido ? '✓' : '•'}
-        </Text>
-      </View>
-      <Text
-        style={[
-          styles.requisitoTexto,
-          cumplido ? styles.requisitoTextoOk : styles.requisitoTextoPendiente,
-        ]}
-      >
-        {texto}
-      </Text>
-    </View>
-  );
-}
-
-export const RegisterScreen = ({ navigation }) => {
   const [step, setStep] = useState(1);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [codigoOtp, setCodigoOtp] = useState('');
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [otp, setOtp] = useState('');
   const [focusedField, setFocusedField] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
+
+  const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [cooldown, setCooldown] = useState(0);
+  const [errorMsg, setErrorMsg] = useState(null);
+  const [infoMsg, setInfoMsg] = useState(null);
 
   useEffect(() => {
     if (cooldown <= 0) return undefined;
@@ -89,117 +43,148 @@ export const RegisterScreen = ({ navigation }) => {
     return () => clearInterval(timer);
   }, [cooldown]);
 
-  const emailLimpio = email.trim();
-  const emailValido = EMAIL_REGEX.test(emailLimpio);
-  const largoMinimo = password.length >= 6;
-  const tieneLetraYNumero = /[A-Za-z]/.test(password) && /\d/.test(password);
-  const passwordsCoinciden =
-    password.length > 0 && confirmPassword.length > 0 && password === confirmPassword;
-  const fortaleza = evaluarFortalezaPassword(password);
+  const validations = useMemo(() => {
+    const trimmedEmail = email.trim();
+    const emailValid = EMAIL_REGEX.test(trimmedEmail);
+    const hasMinLength = password.length >= 6;
+    const hasNumberOrUpper =
+      /[0-9]/.test(password) || /[A-Z]/.test(password);
+    const passwordsMatch =
+      password.length > 0 && password === confirmPassword;
 
-  const handleRegister = async () => {
-    if (!emailLimpio || !password.trim()) {
-      Alert.alert('Campos requeridos', 'Por favor completá tu correo electrónico y contraseña.');
+    let strengthScore = 0;
+    if (hasMinLength) strengthScore += 1;
+    if (password.length >= 8) strengthScore += 1;
+    if (hasNumberOrUpper) strengthScore += 1;
+
+    return {
+      emailValid,
+      hasMinLength,
+      hasNumberOrUpper,
+      passwordsMatch,
+      strengthScore,
+      canContinueStep1: emailValid && hasMinLength && passwordsMatch,
+    };
+  }, [email, password, confirmPassword]);
+
+  const extractBackendError = (error, fallback) =>
+    error?.response?.data?.message ||
+    error?.response?.data?.error ||
+    (typeof error?.response?.data === 'string' ? error.response.data : null) ||
+    fallback;
+
+  const handleRequestOtp = async () => {
+    setErrorMsg(null);
+    setInfoMsg(null);
+
+    if (!validations.emailValid) {
+      setErrorMsg('Ingresá un correo electrónico válido.');
+      return;
+    }
+    if (!validations.hasMinLength) {
+      setErrorMsg('La contraseña debe tener al menos 6 caracteres.');
+      return;
+    }
+    if (!validations.passwordsMatch) {
+      setErrorMsg('Las contraseñas no coinciden.');
       return;
     }
 
-    if (!emailValido) {
-      Alert.alert('Correo inválido', 'Ingresá una dirección de correo electrónico válida.');
-      return;
-    }
-
-    if (!largoMinimo) {
-      Alert.alert(
-        'Contraseña muy corta',
-        'La contraseña debe tener al menos 6 caracteres.'
-      );
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      Alert.alert('Las contraseñas no coinciden', 'Verificá que ambas contraseñas sean iguales.');
-      return;
-    }
-
+    setLoading(true);
     try {
-      setSubmitting(true);
-      await api.post('/api/auth/registro', {
-        usernameOrEmail: emailLimpio,
-        password,
-      });
-
-      await api.post('/api/auth/otp/solicitar', {
-        email: emailLimpio,
-      });
-
-      setCooldown(60);
+      await authService.requestOtp({ email: email.trim() });
       setStep(2);
+      setCooldown(60);
+      setInfoMsg(`Enviamos un código a ${email.trim()}`);
     } catch (error) {
-      const msg =
-        error.response?.data?.mensaje ||
-        error.response?.data?.message ||
-        error.message ||
-        'No se pudo completar el registro';
-      console.error('Error en registro / solicitud de OTP:', error.response?.data || error.message);
-      Alert.alert('Error en el registro', msg);
+      setErrorMsg(
+        extractBackendError(
+          error,
+          'No se pudo enviar el código de verificación.'
+        )
+      );
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   };
 
   const handleResendOtp = async () => {
     if (cooldown > 0 || resending) return;
-
+    setErrorMsg(null);
+    setInfoMsg(null);
+    setResending(true);
     try {
-      setResending(true);
-      await api.post('/api/auth/otp/reenviar', {
-        email: emailLimpio,
-      });
+      await authService.resendOtp({ email: email.trim() });
       setCooldown(60);
-      Alert.alert(
-        'Código reenviado',
-        `Enviamos un nuevo código de verificación a ${emailLimpio}.`
-      );
+      setInfoMsg('Código reenviado a tu correo.');
     } catch (error) {
-      const msg =
-        error.response?.data?.mensaje ||
-        error.response?.data?.message ||
-        'No se pudo reenviar el código OTP.';
-      Alert.alert('Error al reenviar', msg);
+      setErrorMsg(
+        extractBackendError(error, 'No se pudo reenviar el código.')
+      );
     } finally {
       setResending(false);
     }
   };
 
-  const handleConfirmOtp = async () => {
-    if (!otp.trim()) {
-      Alert.alert('Campo requerido', 'Por favor ingresá el código OTP recibido.');
+  const handleVerifyAndRegister = async () => {
+    setErrorMsg(null);
+    setInfoMsg(null);
+
+    if (!codigoOtp.trim() || codigoOtp.trim().length < 4) {
+      setErrorMsg('Ingresá el código de verificación.');
       return;
     }
 
+    setLoading(true);
     try {
-      setSubmitting(true);
-      await api.post('/api/auth/otp/verificar', {
-        email: emailLimpio,
-        codigo: otp.trim(),
+      await authService.verifyOtp({
+        email: email.trim(),
+        codigo: codigoOtp.trim(),
       });
 
-      Alert.alert(
-        '¡Cuenta verificada!',
-        'Tu cuenta fue activada con éxito. Ya podés iniciar sesión.',
-        [{ text: 'Ir a Iniciar Sesión', onPress: () => navigation.navigate('Login') }]
-      );
+      await signUp({
+        usernameOrEmail: email.trim(),
+        password,
+      });
     } catch (error) {
-      const msg =
-        error.response?.data?.mensaje ||
-        error.response?.data?.message ||
-        'Código OTP inválido o expirado';
-      console.error('Error al verificar OTP:', error.response?.data || error.message);
-      Alert.alert('Código inválido', msg);
+      setErrorMsg(
+        extractBackendError(
+          error,
+          'Código inválido o el correo ya está registrado.'
+        )
+      );
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   };
+
+  const renderCondition = (fulfilled, label) => (
+    <View style={styles.conditionRow}>
+      <View
+        style={[
+          styles.conditionDot,
+          fulfilled ? styles.conditionDotSuccess : styles.conditionDotPending,
+        ]}
+      >
+        <Text
+          style={[
+            styles.conditionDotIcon,
+            fulfilled && styles.conditionDotIconSuccess,
+          ]}
+        >
+          {fulfilled ? '✓' : ''}
+        </Text>
+      </View>
+      <Text
+        style={[
+          styles.conditionText,
+          fulfilled && styles.conditionTextSuccess,
+        ]}
+      >
+        {label}
+      </Text>
+    </View>
+  );
 
   return (
     <KeyboardAvoidingView
@@ -207,689 +192,485 @@ export const RegisterScreen = ({ navigation }) => {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={styles.scrollContainer}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Encabezado de marca */}
-        <View style={styles.headerContainer}>
-          <View style={styles.brandBadge}>
-            <Text style={styles.brandIcon}>{step === 1 ? '✨' : '🔐'}</Text>
-          </View>
-          <Text style={styles.title}>
-            {step === 1 ? 'Creá tu cuenta en Hallado' : 'Verificá tu correo'}
-          </Text>
-          <Text style={styles.subtitle}>
-            {step === 1
-              ? 'Sumate a la comunidad para reportar y recuperar objetos perdidos en tu barrio.'
-              : 'Ingresá el código de seguridad que generamos para activar tu cuenta.'}
-          </Text>
+        <View style={styles.headerSection}>
+          <Text style={styles.title}>Crear cuenta</Text>
+          <Text style={styles.subtitle}>Paso {step} de 2</Text>
         </View>
 
-        {/* Indicador visual de pasos */}
-        <View style={styles.stepperContainer}>
-          <View style={styles.stepItem}>
-            <View style={[styles.stepCircle, styles.stepCircleActive]}>
-              <Text style={styles.stepCircleTextActive}>{step > 1 ? '✓' : '1'}</Text>
-            </View>
-            <Text style={[styles.stepLabel, styles.stepLabelActive]}>Tus datos</Text>
-          </View>
-
-          <View style={[styles.stepLine, step === 2 && styles.stepLineActive]} />
-
-          <View style={styles.stepItem}>
-            <View style={[styles.stepCircle, step === 2 && styles.stepCircleActive]}>
-              <Text
-                style={[
-                  styles.stepCircleText,
-                  step === 2 && styles.stepCircleTextActive,
-                ]}
-              >
-                2
-              </Text>
-            </View>
-            <Text style={[styles.stepLabel, step === 2 && styles.stepLabelActive]}>
-              Código OTP
-            </Text>
-          </View>
+        <View style={styles.progressBarTrack}>
+          <View
+            style={[
+              styles.progressBarFill,
+              { width: `${(step / 2) * 100}%` },
+            ]}
+          />
         </View>
 
-        {/* Tarjeta principal */}
         <View style={styles.card}>
+          {errorMsg ? (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorText}>{errorMsg}</Text>
+            </View>
+          ) : null}
+
+          {infoMsg ? (
+            <View style={styles.infoBanner}>
+              <Text style={styles.infoText}>{infoMsg}</Text>
+            </View>
+          ) : null}
+
           {step === 1 ? (
             <>
-              {/* Campo de Email */}
               <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Correo electrónico</Text>
+                <Text style={styles.label}>Correo electrónico</Text>
                 <View
                   style={[
                     styles.inputWrapper,
                     focusedField === 'email' && styles.inputWrapperFocused,
-                    email.length > 0 && !emailValido && styles.inputWrapperError,
+                    email.length > 0 &&
+                      validations.emailValid &&
+                      styles.inputWrapperValid,
                   ]}
                 >
-                  <Text style={styles.inputPrefix}>✉️</Text>
                   <TextInput
-                    style={styles.textInput}
-                    placeholder="nombre@ejemplo.com"
+                    style={styles.inputField}
+                    placeholder="nombre@correo.com"
                     placeholderTextColor="#9ca3af"
-                    value={email}
-                    onChangeText={setEmail}
-                    onFocus={() => setFocusedField('email')}
-                    onBlur={() => setFocusedField(null)}
                     keyboardType="email-address"
                     autoCapitalize="none"
                     autoCorrect={false}
+                    value={email}
+                    onFocus={() => setFocusedField('email')}
+                    onBlur={() => setFocusedField(null)}
+                    onChangeText={(val) => {
+                      setEmail(val);
+                      if (errorMsg) setErrorMsg(null);
+                    }}
                   />
-                  {email.length > 0 && (
-                    <Text style={styles.validationBadge}>
-                      {emailValido ? '✅' : '⚠️'}
-                    </Text>
-                  )}
                 </View>
-                {email.length > 0 && !emailValido && (
-                  <Text style={styles.helperError}>
-                    Ingresá un formato de correo válido (ej: usuario@dominio.com)
-                  </Text>
-                )}
               </View>
 
-              {/* Campo de Contraseña */}
               <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Contraseña</Text>
+                <Text style={styles.label}>Contraseña</Text>
                 <View
                   style={[
                     styles.inputWrapper,
                     focusedField === 'password' && styles.inputWrapperFocused,
                   ]}
                 >
-                  <Text style={styles.inputPrefix}>🔒</Text>
                   <TextInput
-                    style={styles.textInput}
-                    placeholder="Creá una contraseña segura"
+                    style={styles.inputField}
+                    placeholder="Mínimo 6 caracteres"
                     placeholderTextColor="#9ca3af"
-                    value={password}
-                    onChangeText={setPassword}
-                    onFocus={() => setFocusedField('password')}
-                    onBlur={() => setFocusedField(null)}
                     secureTextEntry={!showPassword}
                     autoCapitalize="none"
+                    value={password}
+                    onFocus={() => setFocusedField('password')}
+                    onBlur={() => setFocusedField(null)}
+                    onChangeText={(val) => {
+                      setPassword(val);
+                      if (errorMsg) setErrorMsg(null);
+                    }}
                   />
-                  <Pressable
+                  <TouchableOpacity
+                    style={styles.actionBtn}
                     onPress={() => setShowPassword((prev) => !prev)}
-                    style={styles.eyeButton}
-                    hitSlop={8}
                   >
-                    <Text style={styles.eyeText}>{showPassword ? '🙈' : '👁️'}</Text>
-                  </Pressable>
+                    <Text style={styles.toggleText}>
+                      {showPassword ? 'Ocultar' : 'Ver'}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
-
-                {/* Barra de fortaleza */}
-                {password.length > 0 && (
-                  <View style={styles.strengthBox}>
-                    <View style={styles.strengthHeader}>
-                      <Text style={styles.strengthTitle}>Seguridad de la clave:</Text>
-                      <Text style={[styles.strengthValue, { color: fortaleza.color }]}>
-                        {fortaleza.etiqueta}
-                      </Text>
-                    </View>
-                    <View style={styles.strengthTrack}>
-                      <View
-                        style={[
-                          styles.strengthFill,
-                          {
-                            width: fortaleza.porcentaje,
-                            backgroundColor: fortaleza.color,
-                          },
-                        ]}
-                      />
-                    </View>
-                  </View>
-                )}
               </View>
 
-              {/* Campo de Confirmar Contraseña */}
               <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Confirmar contraseña</Text>
+                <Text style={styles.label}>Repetir contraseña</Text>
                 <View
                   style={[
                     styles.inputWrapper,
-                    focusedField === 'confirmPassword' && styles.inputWrapperFocused,
+                    focusedField === 'confirm' && styles.inputWrapperFocused,
                     confirmPassword.length > 0 &&
-                      !passwordsCoinciden &&
-                      styles.inputWrapperError,
+                      validations.passwordsMatch &&
+                      styles.inputWrapperValid,
                   ]}
                 >
-                  <Text style={styles.inputPrefix}>🛡️</Text>
                   <TextInput
-                    style={styles.textInput}
+                    style={styles.inputField}
                     placeholder="Repetí tu contraseña"
                     placeholderTextColor="#9ca3af"
-                    value={confirmPassword}
-                    onChangeText={setConfirmPassword}
-                    onFocus={() => setFocusedField('confirmPassword')}
-                    onBlur={() => setFocusedField(null)}
                     secureTextEntry={!showConfirmPassword}
                     autoCapitalize="none"
+                    value={confirmPassword}
+                    onFocus={() => setFocusedField('confirm')}
+                    onBlur={() => setFocusedField(null)}
+                    onChangeText={(val) => {
+                      setConfirmPassword(val);
+                      if (errorMsg) setErrorMsg(null);
+                    }}
                   />
-                  <Pressable
+                  <TouchableOpacity
+                    style={styles.actionBtn}
                     onPress={() => setShowConfirmPassword((prev) => !prev)}
-                    style={styles.eyeButton}
-                    hitSlop={8}
                   >
-                    <Text style={styles.eyeText}>
-                      {showConfirmPassword ? '🙈' : '👁️'}
+                    <Text style={styles.toggleText}>
+                      {showConfirmPassword ? 'Ocultar' : 'Ver'}
                     </Text>
-                  </Pressable>
+                  </TouchableOpacity>
                 </View>
               </View>
 
-              {/* Checklist de requisitos */}
-              <View style={styles.requisitosBox}>
-                <Text style={styles.requisitosTitulo}>Requisitos de la cuenta:</Text>
-                <RequisitoItem
-                  cumplido={emailValido}
-                  texto="Correo electrónico con formato válido"
-                />
-                <RequisitoItem
-                  cumplido={largoMinimo}
-                  texto="Al menos 6 caracteres de longitud"
-                />
-                <RequisitoItem
-                  cumplido={tieneLetraYNumero}
-                  texto="Combina letras y números (recomendado)"
-                />
-                <RequisitoItem
-                  cumplido={passwordsCoinciden}
-                  texto="Ambas contraseñas coinciden"
-                />
+              <View style={styles.conditionsCard}>
+                {renderCondition(
+                  validations.emailValid,
+                  'Correo electrónico válido'
+                )}
+                {renderCondition(
+                  validations.hasMinLength,
+                  'Mínimo 6 caracteres'
+                )}
+                {renderCondition(
+                  validations.hasNumberOrUpper,
+                  'Incluye mayúscula o número (recomendado)'
+                )}
+                {renderCondition(
+                  validations.passwordsMatch,
+                  'Las contraseñas coinciden'
+                )}
               </View>
 
-              {/* Botón principal de Registro */}
-              <Pressable
-                style={({ pressed }) => [
+              <TouchableOpacity
+                style={[
                   styles.primaryButton,
-                  submitting && styles.primaryButtonDisabled,
-                  pressed && !submitting && styles.primaryButtonPressed,
+                  (!validations.canContinueStep1 || loading) &&
+                    styles.buttonDisabled,
                 ]}
-                onPress={handleRegister}
-                disabled={submitting}
+                onPress={handleRequestOtp}
+                disabled={!validations.canContinueStep1 || loading}
+                activeOpacity={0.85}
               >
-                {submitting ? (
-                  <View style={styles.buttonLoadingRow}>
-                    <ActivityIndicator color="#ffffff" size="small" />
-                    <Text style={styles.primaryButtonText}>Creando cuenta...</Text>
-                  </View>
+                {loading ? (
+                  <ActivityIndicator color="#ffffff" />
                 ) : (
-                  <Text style={styles.primaryButtonText}>Continuar y recibir código</Text>
+                  <Text style={styles.primaryButtonText}>Continuar</Text>
                 )}
-              </Pressable>
+              </TouchableOpacity>
             </>
           ) : (
             <>
-              {/* Tarjeta informativa del email en el Paso 2 */}
-              <View style={styles.emailPill}>
-                <View style={styles.emailPillInfo}>
-                  <Text style={styles.emailPillLabel}>Código enviado a:</Text>
-                  <Text style={styles.emailPillValue} numberOfLines={1}>
-                    {emailLimpio}
-                  </Text>
-                </View>
-                <Pressable
-                  onPress={() => {
-                    setOtp('');
-                    setStep(1);
-                  }}
-                  style={styles.changeEmailBtn}
-                >
-                  <Text style={styles.changeEmailText}>Cambiar</Text>
-                </Pressable>
-              </View>
-
-              {/* Input de Código OTP */}
               <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Código de verificación (OTP)</Text>
+                <Text style={styles.label}>Código de verificación</Text>
                 <TextInput
                   style={[
                     styles.otpInput,
                     focusedField === 'otp' && styles.inputWrapperFocused,
                   ]}
-                  placeholder="• • • • • •"
-                  placeholderTextColor="#9ca3af"
-                  value={otp}
-                  onChangeText={setOtp}
+                  placeholder="000000"
+                  placeholderTextColor="#cbd5e1"
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  value={codigoOtp}
                   onFocus={() => setFocusedField('otp')}
                   onBlur={() => setFocusedField(null)}
-                  keyboardType="number-pad"
-                  maxLength={8}
-                  textAlign="center"
+                  onChangeText={(val) => {
+                    setCodigoOtp(val.replace(/[^0-9]/g, ''));
+                    if (errorMsg) setErrorMsg(null);
+                  }}
                 />
-                <Text style={styles.otpHint}>
-                  Revisá tu bandeja de entrada o carpeta de spam e ingresá el código numérico.
-                </Text>
               </View>
 
-              {/* Botón Confirmar OTP */}
-              <Pressable
-                style={({ pressed }) => [
+              <TouchableOpacity
+                style={[
                   styles.primaryButton,
-                  submitting && styles.primaryButtonDisabled,
-                  pressed && !submitting && styles.primaryButtonPressed,
+                  (loading || codigoOtp.trim().length < 4) &&
+                    styles.buttonDisabled,
                 ]}
-                onPress={handleConfirmOtp}
-                disabled={submitting}
+                onPress={handleVerifyAndRegister}
+                disabled={loading || codigoOtp.trim().length < 4}
+                activeOpacity={0.85}
               >
-                {submitting ? (
-                  <View style={styles.buttonLoadingRow}>
-                    <ActivityIndicator color="#ffffff" size="small" />
-                    <Text style={styles.primaryButtonText}>Verificando código...</Text>
-                  </View>
+                {loading ? (
+                  <ActivityIndicator color="#ffffff" />
                 ) : (
-                  <Text style={styles.primaryButtonText}>Confirmar y activar cuenta</Text>
+                  <Text style={styles.primaryButtonText}>
+                    Confirmar y crear cuenta
+                  </Text>
                 )}
-              </Pressable>
+              </TouchableOpacity>
 
-              {/* Botón Reenviar OTP con temporizador */}
-              <Pressable
-                style={({ pressed }) => [
-                  styles.secondaryButton,
-                  (cooldown > 0 || resending) && styles.secondaryButtonDisabled,
-                  pressed && cooldown === 0 && !resending && styles.secondaryButtonPressed,
-                ]}
-                onPress={handleResendOtp}
-                disabled={cooldown > 0 || resending}
-              >
-                <Text
-                  style={[
-                    styles.secondaryButtonText,
-                    (cooldown > 0 || resending) && styles.secondaryButtonTextDisabled,
-                  ]}
+              <View style={styles.secondaryActions}>
+                <TouchableOpacity
+                  onPress={handleResendOtp}
+                  disabled={resending || cooldown > 0}
                 >
-                  {resending
-                    ? 'Reenviando código...'
-                    : cooldown > 0
-                    ? `Reenviar código en ${cooldown}s`
-                    : '¿No recibiste el código? Reenviar'}
-                </Text>
-              </Pressable>
+                  <Text
+                    style={[
+                      styles.secondaryLink,
+                      cooldown > 0 && styles.linkMuted,
+                    ]}
+                  >
+                    {resending
+                      ? 'Reenviando...'
+                      : cooldown > 0
+                      ? `Reenviar en ${cooldown}s`
+                      : 'Reenviar código'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => {
+                    setStep(1);
+                    setErrorMsg(null);
+                    setInfoMsg(null);
+                  }}
+                >
+                  <Text style={styles.mutedLink}>Cambiar correo</Text>
+                </TouchableOpacity>
+              </View>
             </>
           )}
         </View>
 
-        {/* Footer para volver al Login */}
-        <View style={styles.footerContainer}>
-          <Text style={styles.footerText}>¿Ya tenés una cuenta en Hallado?</Text>
-          <Pressable onPress={() => navigation.navigate('Login')} hitSlop={8}>
-            <Text style={styles.footerLink}>Iniciá sesión acá</Text>
-          </Pressable>
+        <View style={styles.footerRow}>
+          <Text style={styles.footerText}>¿Ya tenés cuenta?</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+            <Text style={styles.footerLink}>Iniciá sesión</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
-};
+}
 
 const styles = StyleSheet.create({
   keyboardContainer: {
     flex: 1,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#f8fafc',
   },
-  scrollContent: {
+  scrollContainer: {
     flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingVertical: 36,
     justifyContent: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 28,
   },
-  headerContainer: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  brandBadge: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#dbeafe',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-    borderWidth: 2,
-    borderColor: '#bfdbfe',
-  },
-  brandIcon: {
-    fontSize: 28,
+  headerSection: {
+    marginBottom: 14,
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    textAlign: 'center',
-    marginBottom: 6,
+    fontWeight: '800',
+    color: '#0f172a',
+    letterSpacing: -0.4,
   },
   subtitle: {
-    fontSize: 14,
-    color: COLORS.muted,
-    textAlign: 'center',
-    lineHeight: 20,
-    paddingHorizontal: 10,
+    fontSize: 13,
+    color: '#64748b',
+    marginTop: 4,
+    fontWeight: '500',
   },
-  stepperContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-    paddingHorizontal: 24,
+  progressBarTrack: {
+    height: 4,
+    backgroundColor: '#e2e8f0',
+    borderRadius: 2,
+    marginBottom: 22,
+    overflow: 'hidden',
   },
-  stepItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#e5e7eb',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepCircleActive: {
+  progressBarFill: {
+    height: '100%',
     backgroundColor: COLORS.primary,
-  },
-  stepCircleText: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: '#6b7280',
-  },
-  stepCircleTextActive: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: '#ffffff',
-  },
-  stepLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#6b7280',
-  },
-  stepLabelActive: {
-    color: COLORS.text,
-  },
-  stepLine: {
-    flex: 1,
-    height: 2,
-    backgroundColor: '#d1d5db',
-    marginHorizontal: 12,
-    maxWidth: 60,
-  },
-  stepLineActive: {
-    backgroundColor: COLORS.primary,
+    borderRadius: 2,
   },
   card: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
-    padding: 20,
+    padding: 22,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    shadowColor: '#000',
+    borderColor: '#e2e8f0',
+    shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.04,
     shadowRadius: 8,
-    elevation: 3,
-    gap: 16,
+    elevation: 2,
+  },
+  errorBanner: {
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    marginBottom: 16,
+  },
+  errorText: {
+    color: '#b91c1c',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  infoBanner: {
+    backgroundColor: '#eff6ff',
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    marginBottom: 16,
+  },
+  infoText: {
+    color: '#1d4ed8',
+    fontSize: 13,
+    fontWeight: '500',
   },
   fieldGroup: {
-    gap: 6,
+    marginBottom: 14,
   },
-  fieldLabel: {
+  label: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#374151',
+    color: '#334155',
+    marginBottom: 6,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 50,
-    borderWidth: 1.5,
-    borderColor: '#d1d5db',
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
     borderRadius: 10,
-    backgroundColor: '#f9fafb',
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
   },
   inputWrapperFocused: {
     borderColor: COLORS.primary,
     backgroundColor: '#ffffff',
   },
-  inputWrapperError: {
-    borderColor: COLORS.danger,
+  inputWrapperValid: {
+    borderColor: '#10b981',
   },
-  inputPrefix: {
-    fontSize: 16,
-    marginRight: 8,
-  },
-  textInput: {
+  inputField: {
     flex: 1,
-    height: '100%',
+    paddingVertical: 12,
     fontSize: 15,
-    color: COLORS.text,
+    color: '#0f172a',
   },
-  validationBadge: {
-    fontSize: 14,
-    marginLeft: 6,
+  actionBtn: {
+    paddingLeft: 10,
+    paddingVertical: 6,
   },
-  helperError: {
-    fontSize: 12,
-    color: COLORS.danger,
-    marginTop: 2,
+  toggleText: {
+    fontSize: 13,
+    color: COLORS.primary,
+    fontWeight: '600',
   },
-  eyeButton: {
-    paddingHorizontal: 8,
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  eyeText: {
-    fontSize: 18,
-  },
-  strengthBox: {
-    marginTop: 4,
-    gap: 4,
-  },
-  strengthHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  strengthTitle: {
-    fontSize: 12,
-    color: COLORS.muted,
-  },
-  strengthValue: {
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  strengthTrack: {
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#e5e7eb',
-    overflow: 'hidden',
-  },
-  strengthFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  requisitosBox: {
+  conditionsCard: {
     backgroundColor: '#f8fafc',
     borderRadius: 10,
-    padding: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    gap: 6,
-  },
-  requisitosTitulo: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#475569',
-    marginBottom: 2,
-  },
-  requisitoFila: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: 8,
   },
-  requisitoCirculo: {
+  conditionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  conditionDot: {
     width: 18,
     height: 18,
     borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 8,
   },
-  requisitoCirculoOk: {
-    backgroundColor: '#dcfce7',
+  conditionDotPending: {
+    borderWidth: 1.5,
+    borderColor: '#cbd5e1',
+    backgroundColor: '#ffffff',
   },
-  requisitoCirculoPendiente: {
-    backgroundColor: '#e5e7eb',
+  conditionDotSuccess: {
+    backgroundColor: '#10b981',
   },
-  requisitoIcono: {
+  conditionDotIcon: {
     fontSize: 11,
-    fontWeight: 'bold',
+    fontWeight: '800',
+    color: 'transparent',
   },
-  requisitoIconoOk: {
-    color: '#15803d',
+  conditionDotIconSuccess: {
+    color: '#ffffff',
   },
-  requisitoIconoPendiente: {
-    color: '#6b7280',
+  conditionText: {
+    fontSize: 12.5,
+    color: '#64748b',
   },
-  requisitoTexto: {
-    fontSize: 12,
+  conditionTextSuccess: {
+    color: '#047857',
+    fontWeight: '600',
   },
-  requisitoTextoOk: {
-    color: '#15803d',
-    fontWeight: '500',
-  },
-  requisitoTextoPendiente: {
-    color: '#6b7280',
+  otpInput: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 10,
+    paddingVertical: 14,
+    fontSize: 22,
+    fontWeight: '700',
+    letterSpacing: 8,
+    textAlign: 'center',
+    color: '#0f172a',
   },
   primaryButton: {
-    height: 50,
-    borderRadius: 10,
     backgroundColor: COLORS.primary,
+    paddingVertical: 14,
+    borderRadius: 10,
     alignItems: 'center',
-    justifyContent: 'center',
     marginTop: 4,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 5,
-    elevation: 3,
   },
-  primaryButtonPressed: {
-    opacity: 0.88,
-  },
-  primaryButtonDisabled: {
-    backgroundColor: '#93c5fd',
-    shadowOpacity: 0,
+  buttonDisabled: {
+    opacity: 0.5,
   },
   primaryButtonText: {
     color: '#ffffff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  buttonLoadingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  emailPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#eff6ff',
-    borderRadius: 10,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
-  },
-  emailPillInfo: {
-    flex: 1,
-    marginRight: 8,
-  },
-  emailPillLabel: {
-    fontSize: 11,
-    color: '#1d4ed8',
-  },
-  emailPillValue: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#1e3a8a',
-  },
-  changeEmailBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 6,
-    backgroundColor: '#dbeafe',
-  },
-  changeEmailText: {
-    fontSize: 12,
+    fontSize: 15,
     fontWeight: '700',
+  },
+  secondaryActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+  },
+  secondaryLink: {
     color: COLORS.primary,
-  },
-  otpInput: {
-    height: 58,
-    borderWidth: 1.5,
-    borderColor: '#d1d5db',
-    borderRadius: 12,
-    backgroundColor: '#f9fafb',
-    fontSize: 24,
-    fontWeight: 'bold',
-    letterSpacing: 8,
-    color: COLORS.text,
-    paddingHorizontal: 16,
-  },
-  otpHint: {
-    fontSize: 12,
-    color: COLORS.muted,
-    textAlign: 'center',
-    marginTop: 4,
-    lineHeight: 17,
-  },
-  secondaryButton: {
-    height: 44,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#ffffff',
-  },
-  secondaryButtonPressed: {
-    backgroundColor: '#eff6ff',
-  },
-  secondaryButtonDisabled: {
-    borderColor: '#d1d5db',
-    backgroundColor: '#f9fafb',
-  },
-  secondaryButtonText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
-    color: COLORS.primary,
   },
-  secondaryButtonTextDisabled: {
-    color: '#9ca3af',
+  linkMuted: {
+    color: '#94a3b8',
   },
-  footerContainer: {
+  mutedLink: {
+    color: '#64748b',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  footerRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 24,
     gap: 6,
-    marginTop: 22,
   },
   footerText: {
     fontSize: 14,
-    color: COLORS.muted,
+    color: '#64748b',
   },
   footerLink: {
     fontSize: 14,
-    fontWeight: 'bold',
     color: COLORS.primary,
+    fontWeight: '700',
   },
 });
-
-export default RegisterScreen;
