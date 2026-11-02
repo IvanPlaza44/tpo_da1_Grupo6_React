@@ -5,6 +5,7 @@ import api from './api';
 // - La primera propuesta la hace quien tiene el objeto.
 // - La otra parte la acepta o propone otro lugar (la anterior queda REEMPLAZADA).
 // El backend devuelve siempre el "encuentro": punto vigente (o null) + puedoProponer / puedoAceptar.
+// contraparteTelefono solo viene si la otra persona eligió mostrar su teléfono (Punto 2).
 //
 // EXPO_PUBLIC_MOCKS=true simula todo (sirve sin backend ni login).
 const MODO_MOCK = process.env.EXPO_PUBLIC_MOCKS;
@@ -22,13 +23,15 @@ const aIsoLocal = (d) =>
 const haceHoras = (horas) => aIsoLocal(new Date(Date.now() - horas * 3600000));
 
 // Reclamo 2 de los mocks ("Gata gris perdida", en Enviados): vos tenés a la gata,
-// propusiste un lugar y Martín respondió proponiendo otro. Sirve para probar aceptar y contraproponer.
+// propusiste un lugar y Martín respondió proponiendo otro. Martín muestra su teléfono.
+// Sirve para probar aceptar, contraproponer y el teléfono visible.
 const mockEncuentros = {
   2: {
     publicacionId: 11,
     publicacionTitulo: 'Gata gris perdida',
     tengoElObjeto: true,
     contraparteNombre: 'Martín',
+    contraparteTelefono: '11 5555-1234',
     puntos: [
       {
         id: 1,
@@ -58,7 +61,7 @@ const mockEncuentros = {
 let mockSiguienteId = 100;
 
 // Cualquier otro reclamo aceptado (por ejemplo, el que aceptes en "Recibidos"):
-// vos tenés el objeto y todavía nadie propuso.
+// vos tenés el objeto, todavía nadie propuso y la otra persona no muestra su teléfono.
 const encuentroMock = (reclamoId) => {
   if (!mockEncuentros[reclamoId]) {
     mockEncuentros[reclamoId] = {
@@ -66,6 +69,7 @@ const encuentroMock = (reclamoId) => {
       publicacionTitulo: null,
       tengoElObjeto: true,
       contraparteNombre: 'la otra persona',
+      contraparteTelefono: null,
       puntos: [],
     };
   }
@@ -82,6 +86,7 @@ const aDto = (reclamoId, encuentro) => {
     publicacionTitulo: encuentro.publicacionTitulo,
     tengoElObjeto: encuentro.tengoElObjeto,
     contraparteNombre: encuentro.contraparteNombre,
+    contraparteTelefono: encuentro.contraparteTelefono ?? null,
     punto: vigente,
     puedoProponer: vigente ? propuestaDelOtro : encuentro.tengoElObjeto,
     puedoAceptar: propuestaDelOtro,

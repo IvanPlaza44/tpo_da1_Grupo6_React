@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -25,6 +26,7 @@ const ESTADOS = {
 // - Quien tiene el objeto propone el primer punto.
 // - La otra parte lo acepta o propone otro lugar.
 // - "Cómo llegar" abre Google Maps en modo navegación.
+// - Muestra el teléfono de la otra parte solo si eligió hacerlo visible (Punto 2).
 // Props: reclamoId (un reclamo ACEPTADO), onVolver().
 export default function PuntoEncuentroScreen({ reclamoId, onVolver }) {
   const { conectado } = useConexion();
@@ -155,6 +157,14 @@ export default function PuntoEncuentroScreen({ reclamoId, onVolver }) {
     }
   };
 
+  const llamar = async () => {
+    try {
+      await Linking.openURL(`tel:${encuentro.contraparteTelefono}`);
+    } catch {
+      Alert.alert('No se pudo llamar', 'Tu dispositivo no permite hacer llamadas.');
+    }
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
       {onVolver ? (
@@ -173,6 +183,19 @@ export default function PuntoEncuentroScreen({ reclamoId, onVolver }) {
         <Text style={styles.resumenTexto}>
           {tengoElObjeto ? 'Vos tenés el objeto.' : `${contraparte} tiene el objeto.`}
         </Text>
+
+        {encuentro.contraparteTelefono ? (
+          <View style={styles.telefono}>
+            <Text style={styles.telefonoTexto}>📞 {encuentro.contraparteTelefono}</Text>
+            <Pressable onPress={llamar}>
+              <Text style={styles.link}>Llamar</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <Text style={styles.resumenTexto}>
+            {contraparte} prefiere comunicarse solo a través de la app.
+          </Text>
+        )}
       </View>
 
       {punto ? (
@@ -304,6 +327,9 @@ const styles = StyleSheet.create({
   resumen: { padding: 14, borderRadius: 10, borderWidth: 1, borderColor: COLORS.border, backgroundColor: '#f9fafb', gap: 2 },
   resumenTitulo: { fontSize: 16, fontWeight: '600', color: COLORS.text },
   resumenTexto: { fontSize: 13, color: COLORS.muted },
+  telefono: { flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 6 },
+  telefonoTexto: { fontSize: 15, fontWeight: '600', color: COLORS.text },
+  link: { color: COLORS.primary, fontWeight: '600' },
   tarjeta: { padding: 14, borderRadius: 10, borderWidth: 1, borderColor: COLORS.border, backgroundColor: '#fff', gap: 8 },
   fila: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   seccion: { fontSize: 13, color: COLORS.muted, flex: 1 },
@@ -326,7 +352,7 @@ const styles = StyleSheet.create({
   boton: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 8, alignItems: 'center', backgroundColor: COLORS.primary },
   botonFlex: { flex: 1 },
   botonMapa: { backgroundColor: '#059669' },
-  botonTexto: { color: '#fff', fontWeight: 'bold' },
+  botonTexto: { color: '#fff', fontWeight: '600' },
   botonSecundario: { backgroundColor: 'transparent', borderWidth: 1, borderColor: COLORS.primary },
   botonSecundarioTexto: { color: COLORS.primary, fontWeight: '600' },
   botonInactivo: { opacity: 0.5 },
