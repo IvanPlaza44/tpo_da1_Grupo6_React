@@ -22,7 +22,7 @@ import { useConexion } from '../hooks/useConexion';
 // - Publicación PERDIDO → "Lo encontré": foto y barrio obligatorios; descripción opcional.
 // Sin conexión el envío queda deshabilitado (Punto 6).
 // Props: publicacionId; onVolver(); onEnviado(reclamo). Los conecta quien abre la pantalla
-// (por ejemplo, el detalle de la publicación del Punto 4).
+// (el detalle de la publicación del Punto 4).
 export default function ReclamarScreen({ publicacionId, onVolver, onEnviado }) {
   const [publicacion, setPublicacion] = useState(null);
   const [cargando, setCargando] = useState(true);
@@ -52,7 +52,19 @@ export default function ReclamarScreen({ publicacionId, onVolver, onEnviado }) {
   }, [publicacionId]);
 
   if (cargando) return <EstadoCargando mensaje="Cargando publicación…" />;
-  if (error) return <EstadoError mensaje={error} onReintentar={cargar} />;
+
+  if (error) {
+    return (
+      <View style={styles.pantallaError}>
+        {onVolver ? (
+          <Pressable onPress={onVolver} style={styles.volverError}>
+            <Text style={styles.volverTexto}>‹ Volver</Text>
+          </Pressable>
+        ) : null}
+        <EstadoError mensaje={error} onReintentar={cargar} />
+      </View>
+    );
+  }
 
   const esMio = publicacion.tipo === 'ENCONTRADO';
   const hayPregunta = Boolean(publicacion.preguntaVerificacion);
@@ -256,6 +268,8 @@ function motivoBloqueo(publicacion) {
 
 const styles = StyleSheet.create({
   container: { padding: 20, gap: 14, backgroundColor: COLORS.background },
+  pantallaError: { flex: 1 },
+  volverError: { paddingHorizontal: 20, paddingVertical: 12 },
   volver: { alignSelf: 'flex-start', paddingVertical: 4 },
   volverTexto: { color: COLORS.primary, fontSize: 16, fontWeight: '600' },
   titulo: { fontSize: 22, fontWeight: 'bold', color: COLORS.text },
@@ -278,5 +292,5 @@ const styles = StyleSheet.create({
   botonFotoTexto: { color: COLORS.primary, fontWeight: '600' },
   botonEnviar: { marginTop: 4, marginBottom: 20, paddingVertical: 14, borderRadius: 8, backgroundColor: COLORS.primary, alignItems: 'center' },
   botonDeshabilitado: { opacity: 0.6 },
-  botonEnviarTexto: { color: '#fff', fontWeight: 'bold', fontSize: 15 },
+  botonEnviarTexto: { color: '#fff', fontWeight: '600', fontSize: 15 },
 });
