@@ -11,6 +11,8 @@ import { getErrorMessage } from '../services/api';
 import useListado from '../hooks/useListado';
 import { EstadoCargando, EstadoError, EstadoVacio } from '../components/EstadoPantalla';
 import TarjetaReclamo from '../components/TarjetaReclamo';
+import { useConexion } from '../hooks/useConexion';
+import PuntoEncuentroScreen from './PuntoEncuentroScreen';
 
 const PESTANIAS = [
   {
@@ -31,10 +33,17 @@ const PESTANIAS = [
 
 // "Siempre actualizados": la lista se carga cada vez que se entra a la pantalla
 // (App.js la vuelve a montar al cambiar de pestaña) y se puede refrescar deslizando hacia abajo.
+// Sin conexión, aceptar/rechazar quedan deshabilitados (Punto 6).
+// En los reclamos aceptados se abre el punto de encuentro (Punto 8).
 // onAbrirPublicacion(id): lo conecta la navegación para ir al detalle de la publicación.
 export default function MisReclamosScreen({ onAbrirPublicacion }) {
   const [clave, setClave] = useState(PESTANIAS[0].clave);
+  const [encuentroId, setEncuentroId] = useState(null);
   const pestania = PESTANIAS.find((p) => p.clave === clave);
+
+  if (encuentroId) {
+    return <PuntoEncuentroScreen reclamoId={encuentroId} onVolver={() => setEncuentroId(null)} />;
+  }
 
   return (
     <View style={styles.container}>
@@ -49,15 +58,21 @@ export default function MisReclamosScreen({ onAbrirPublicacion }) {
           </Pressable>
         ))}
       </View>
-      <ListaReclamos key={clave} pestania={pestania} onAbrirPublicacion={onAbrirPublicacion} />
+      <ListaReclamos
+        key={clave}
+        pestania={pestania}
+        onAbrirPublicacion={onAbrirPublicacion}
+        onAbrirEncuentro={setEncuentroId}
+      />
     </View>
   );
 }
 
-function ListaReclamos({ pestania, onAbrirPublicacion }) {
+function ListaReclamos({ pestania, onAbrirPublicacion, onAbrirEncuentro }) {
   const recibidos = pestania.clave === 'RECIBIDOS';
   const { datos, setDatos, cargando, refrescando, error, recargar, refrescar } = useListado(pestania.cargar);
   const [ocupadas, setOcupadas] = useState(new Set());
+  const { conectado } = useConexion();
 
   const conOcupada = async (id, accion) => {
     setOcupadas((prev) => new Set(prev).add(id));
@@ -123,9 +138,11 @@ function ListaReclamos({ pestania, onAbrirPublicacion }) {
           reclamo={item}
           recibido={recibidos}
           ocupada={ocupadas.has(item.id)}
+          sinConexion={!conectado}
           onAceptar={() => confirmarAceptar(item)}
           onRechazar={() => confirmarRechazar(item)}
           onPress={onAbrirPublicacion ? () => onAbrirPublicacion(item.publicacionId) : undefined}
+          onPuntoEncuentro={() => onAbrirEncuentro(item.id)}
         />
       )}
     />

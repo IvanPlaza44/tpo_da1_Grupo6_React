@@ -23,9 +23,20 @@ function tiempoRestante(iso) {
 
 // recibido: true si soy el publicador (veo la respuesta de verificación y puedo aceptar/rechazar).
 // sinConexion: true si no hay internet (aceptar/rechazar quedan deshabilitados, Punto 6).
-export default function TarjetaReclamo({ reclamo, recibido, ocupada, sinConexion, onAceptar, onRechazar, onPress }) {
+// onPuntoEncuentro: abre el punto de encuentro de un reclamo aceptado (Punto 8).
+export default function TarjetaReclamo({
+  reclamo,
+  recibido,
+  ocupada,
+  sinConexion,
+  onAceptar,
+  onRechazar,
+  onPress,
+  onPuntoEncuentro,
+}) {
   const estado = ESTADOS[reclamo.estado] || ESTADOS.PENDIENTE;
   const pendiente = reclamo.estado === 'PENDIENTE';
+  const aceptado = reclamo.estado === 'ACEPTADO';
   const esMio = reclamo.publicacionTipo === 'ENCONTRADO';
   const restante = pendiente ? tiempoRestante(reclamo.fechaVencimiento) : null;
 
@@ -84,6 +95,12 @@ export default function TarjetaReclamo({ reclamo, recibido, ocupada, sinConexion
           )}
         </View>
       ) : null}
+
+      {aceptado && onPuntoEncuentro ? (
+        <Pressable style={[styles.boton, styles.botonEncuentro]} onPress={onPuntoEncuentro}>
+          <Text style={styles.botonAceptarTexto}>📍 Punto de encuentro</Text>
+        </Pressable>
+      ) : null}
     </Pressable>
   );
 }
@@ -107,4 +124,5 @@ const styles = StyleSheet.create({
   botonAceptarTexto: { color: '#fff', fontWeight: '600' },
   botonRechazar: { borderWidth: 1, borderColor: COLORS.danger },
   botonRechazarTexto: { color: COLORS.danger, fontWeight: '600' },
+  botonEncuentro: { backgroundColor: COLORS.primary, alignSelf: 'flex-start', marginTop: 8 },
 });
