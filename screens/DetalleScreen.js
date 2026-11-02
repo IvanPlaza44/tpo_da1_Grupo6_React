@@ -25,7 +25,6 @@ const RECLAMOS = { PENDIENTE: 'Pendiente', ACEPTADO: 'Aceptado', RECHAZADO: 'Rec
 
 const dos = (numero) => String(numero).padStart(2, '0');
 
-// La hora puede llegar como "14:30:00", como [14, 30] o como { hour, minute }.
 const formatearHora = (hora) => {
   if (!hora) return '';
   if (typeof hora === 'string') return hora.slice(0, 5);
@@ -43,12 +42,6 @@ function Dato({ etiqueta, valor }) {
   );
 }
 
-// Detalle de una publicación (punto 4).
-// - publicacionId: la publicación a mostrar.
-// - onVolver: vuelve a la pantalla anterior.
-// - onAbrirPerfil(id): abre el perfil público del publicador.
-// - onIrA(clave): cambia de pestaña del menú (la gestión de la publicación propia).
-// - onReclamar(publicacion): abre el reclamo (punto 7). Si todavía no existe, se avisa.
 export default function DetalleScreen({ publicacionId, onVolver, onAbrirPerfil, onIrA, onReclamar }) {
   const { conectado } = useConexion();
   const { width } = useWindowDimensions();
@@ -116,7 +109,6 @@ export default function DetalleScreen({ publicacionId, onVolver, onAbrirPerfil, 
       })
     : null;
 
-  // Solo se puede reclamar una publicación ajena que siga activa y sin un reclamo en curso.
   const puedeReclamar =
     !pub.esPropia &&
     ['ABIERTA', 'EN_RECLAMO'].includes(pub.estado) &&
@@ -180,7 +172,7 @@ export default function DetalleScreen({ publicacionId, onVolver, onAbrirPerfil, 
           <Text style={styles.nota}>La dirección exacta se muestra cuando se acepta un reclamo.</Text>
         ) : null}
 
-                {!pub.esPropia ? (
+        {!pub.esPropia ? (
           <View style={styles.tarjeta}>
             <Text style={styles.seccion}>Publicado por</Text>
             <Text style={styles.nombre}>{pub.publicadorNombre || `Usuario #${pub.publicadorId}`}</Text>

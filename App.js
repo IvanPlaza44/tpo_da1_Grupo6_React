@@ -119,7 +119,7 @@ function AuthenticatedApp() {
           onIrA={irA}
         />
       )}
-      
+
       <StatusBar style="auto" />
     </SafeAreaView>
   );
