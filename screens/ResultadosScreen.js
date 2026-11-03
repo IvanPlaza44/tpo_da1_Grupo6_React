@@ -189,6 +189,8 @@ export default function ResultadosScreen({ navigation, route, onAbrirPublicacion
         </Text>
       )}
 
+      <BotonGuardarAlerta criterios={filtros} />
+
       <Text style={styles.etiqueta}>Ordenar por</Text>
       <Chips opciones={ORDENES} valor={orden} onChange={cambiarOrden} />
 

@@ -22,15 +22,17 @@ export default function MisAlertasScreen({ onVerResultados, onNovedadesVistas })
     setDatos((prev) => prev.map((a) => (a.id === id ? { ...a, hayNovedades, cantidadNovedades } : a)));
 
   const verAlerta = async (alerta) => {
-    onVerResultados?.(alerta);
-    if (!alerta.hayNovedades) return;
-    ponerNovedades(alerta.id, false, 0);
-    try {
-      await marcarAlertaRevisada(alerta.id);
-      onNovedadesVistas?.();
-    } catch {
-      ponerNovedades(alerta.id, alerta.hayNovedades, alerta.cantidadNovedades);
+    if (alerta.hayNovedades) {
+      ponerNovedades(alerta.id, false, 0);
+      try {
+        await marcarAlertaRevisada(alerta.id);
+        onNovedadesVistas?.();
+      } catch {
+        ponerNovedades(alerta.id, alerta.hayNovedades, alerta.cantidadNovedades);
+        return;
+      }
     }
+    onVerResultados?.(alerta);
   };
 
   const conOcupada = async (id, accion) => {
