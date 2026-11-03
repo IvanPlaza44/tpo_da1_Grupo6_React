@@ -144,6 +144,8 @@ export default function ResultadosScreen({ navigation, route, onAbrirPublicacion
         </Text>
       )}
 
+      <BotonGuardarAlerta criterios={filtros} />
+
       <Text style={styles.etiqueta}>Ordenar por</Text>
       <Chips opciones={ORDENES} valor={orden} onChange={cambiarOrden} />
 
@@ -217,8 +219,6 @@ export default function ResultadosScreen({ navigation, route, onAbrirPublicacion
             {filtros.tipo === 'ENCONTRADO' ? 'Publicar mi hallazgo' : 'Publicar mi pérdida'}
           </Text>
         </TouchableOpacity>
-        {/* El botón de alertas lo armó el compañero de "Mis alertas": recibe los criterios. */}
-        <BotonGuardarAlerta criterios={filtros} />
       </View>
     );
   };

@@ -5,6 +5,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { COLORS } from './config';
+import { sinVacios } from './utils/filtros';
 import { AuthProvider } from './context/AuthContext';
 import { ProfileProvider } from './context/ProfileContext';
 import { useAuth } from './hooks/useAuth';
@@ -30,6 +31,18 @@ import BannerSinConexion from './components/BannerSinConexion';
 import SincronizadorPendientes from './components/SincronizadorPendientes';
 
 const Stack = createNativeStackNavigator();
+
+// La alerta guarda `rangoFecha`; el buscador filtra con `rango`.
+const filtrosDesdeAlerta = (alerta) =>
+  sinVacios({
+    tipo: alerta.tipo,
+    categoria: alerta.categoria,
+    palabrasClave: alerta.palabrasClave,
+    barrio: alerta.barrio,
+    rango: alerta.rangoFecha ?? alerta.rango ?? null,
+    fechaDesde: alerta.fechaDesde,
+    fechaHasta: alerta.fechaHasta,
+  });
 
 // PROVISORIO: entrada para probar alertas y seguidas hasta que exista la navegación real.
 const CRITERIOS_PRUEBA = {
@@ -69,13 +82,15 @@ function AuthenticatedApp() {
   const [detalleId, setDetalleId] = useState(null);
   const [perfilId, setPerfilId] = useState(null);
   const [reclamarId, setReclamarId] = useState(null);
+  const [busquedaAlerta, setBusquedaAlerta] = useState(null);
   const novedades = useNovedades();
   const { Componente } = PANTALLAS.find((p) => p.clave === actual);
 
-  const irA = (clave) => {
+  const irA = (clave, extra) => {
     setDetalleId(null);
     setPerfilId(null);
     setReclamarId(null);
+    setBusquedaAlerta(extra?.filtros ?? null);
     setActual(clave);
     novedades.recargar();
   };
@@ -128,6 +143,8 @@ function AuthenticatedApp() {
           onAbrirPerfil={setPerfilId}
           onNovedadesVistas={novedades.recargar}
           onIrA={irA}
+          busquedaInicial={busquedaAlerta}
+          onVerResultados={(alerta) => irA('buscar', { filtros: filtrosDesdeAlerta(alerta) })}
         />
       )}
 

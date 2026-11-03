@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { COLORS } from '../config';
 import { crearAlerta } from '../services/alertas';
@@ -20,6 +20,12 @@ export default function BotonGuardarAlerta({ criterios, onGuardada }) {
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState(null);
   const [guardada, setGuardada] = useState(false);
+
+  // Si la persona cambia la búsqueda, esta es otra alerta y se puede guardar de nuevo.
+  useEffect(() => {
+    setGuardada(false);
+    setError(null);
+  }, [criterios]);
 
   const abrir = () => {
     setNombre(nombreSugerido(criterios));
