@@ -12,10 +12,12 @@ import {
 import BotonSeguir from '../components/BotonSeguir';
 import { EstadoCargando } from '../components/EstadoPantalla';
 import { COLORS } from '../config';
+import { useAuth } from '../hooks/useAuth';
 import { useConexion } from '../hooks/useConexion';
 import { getErrorMessage } from '../services/api';
 import { obtenerPublicacion } from '../services/publicaciones';
 import { obtenerPerfilPublico } from '../services/usuarios';
+import { conCacheReciente } from '../utils/cache';
 import { CATEGORIAS, ESTADOS_PUBLICACION, TIPOS } from '../utils/etiquetas';
 import { formatearFecha } from '../utils/fechas';
 import { calcularResumenReputacion } from '../utils/insignias';
@@ -51,24 +53,38 @@ function Dato({ etiqueta, valor }) {
 // - onReclamar(publicacion): abre el reclamo (punto 7). Si todavía no existe, se avisa.
 export default function DetalleScreen({ publicacionId, onVolver, onAbrirPerfil, onIrA, onReclamar }) {
   const { conectado } = useConexion();
+  const { user } = useAuth();
   const { width } = useWindowDimensions();
   const [pub, setPub] = useState(null);
   const [perfil, setPerfil] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
   const [fotoActual, setFotoActual] = useState(0);
+  const [desactualizado, setDesactualizado] = useState(false);
 
   const cargar = useCallback(async () => {
     try {
       setCargando(true);
       setError(null);
-      setPub(await obtenerPublicacion(publicacionId));
+      // Se guarda en el celular (últimos 20 detalles consultados). Sin red, se muestra lo guardado.
+      // La clave lleva el id del usuario porque el detalle cambia según quién lo mira.
+      const resultado = await conCacheReciente(
+        `detalle:${user?.usuarioId}:${publicacionId}`,
+        () => obtenerPublicacion(publicacionId),
+        { grupo: `detalles-recientes:${user?.usuarioId}`, max: 20 }
+      );
+      setPub(resultado.datos);
+      setDesactualizado(resultado.desactualizado);
+      // Con red, se pide cada foto para que quede en el caché de imágenes del teléfono.
+      if (!resultado.desactualizado) {
+        (resultado.datos.fotos || []).forEach((uri) => Image.prefetch(uri).catch(() => {}));
+      }
     } catch (e) {
       setError(getErrorMessage(e));
     } finally {
       setCargando(false);
     }
-  }, [publicacionId]);
+  }, [publicacionId, user?.usuarioId]);
 
   useEffect(() => {
     cargar();
@@ -76,12 +92,12 @@ export default function DetalleScreen({ publicacionId, onVolver, onAbrirPerfil, 
 
   useEffect(() => {
     if (!pub?.publicadorId || pub.esPropia) return undefined;
-        let activo = true;
+    let activo = true;
     obtenerPerfilPublico(pub.publicadorId)
       .then((datos) => {
         if (activo) setPerfil(datos);
       })
-      .catch(() => {}); 
+      .catch(() => {});
     return () => {
       activo = false;
     };
@@ -131,6 +147,11 @@ export default function DetalleScreen({ publicacionId, onVolver, onAbrirPerfil, 
   return (
     <ScrollView>
       {botonVolver}
+      {desactualizado ? (
+        <Text style={styles.avisoDesactualizado}>
+          Sin conexión: estás viendo la última versión guardada de esta publicación. Puede no estar actualizada.
+        </Text>
+      ) : null}
 
       {fotos.length > 0 ? (
         <View>
@@ -180,7 +201,7 @@ export default function DetalleScreen({ publicacionId, onVolver, onAbrirPerfil, 
           <Text style={styles.nota}>La dirección exacta se muestra cuando se acepta un reclamo.</Text>
         ) : null}
 
-                {!pub.esPropia ? (
+        {!pub.esPropia ? (
           <View style={styles.tarjeta}>
             <Text style={styles.seccion}>Publicado por</Text>
             <Text style={styles.nombre}>{pub.publicadorNombre || `Usuario #${pub.publicadorId}`}</Text>
@@ -297,6 +318,14 @@ const styles = StyleSheet.create({
   botonTexto: { color: '#fff', fontWeight: 'bold' },
   botonSecundario: { backgroundColor: 'transparent', borderWidth: 1, borderColor: COLORS.border },
   botonSecundarioTexto: { color: COLORS.text },
+  avisoDesactualizado: {
+    color: '#92400e',
+    backgroundColor: '#fef3c7',
+    padding: 8,
+    marginHorizontal: 16,
+    borderRadius: 6,
+    fontSize: 13,
+  },
   avisoSinConexion: {
     color: '#92400e',
     backgroundColor: '#fef3c7',

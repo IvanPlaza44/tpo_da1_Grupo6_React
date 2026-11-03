@@ -15,8 +15,9 @@ import Chips from '../components/Chips';
 import ResultadoCard from '../components/ResultadoCard';
 import { COLORS } from '../config';
 import { CATEGORIAS, ORDENES, RANGOS } from '../config/filtros';
+import { useAuth } from '../hooks/useAuth';
 import { getErrorMessage } from '../services/api';
-import { buscarPublicaciones } from '../services/busqueda';
+import { buscarPublicaciones, guardarBusqueda, leerBusquedaGuardada } from '../services/busqueda';
 import { ordenarPorCercania } from '../utils/distancia';
 import { resumenFiltros, sinVacios } from '../utils/filtros';
 import { irA } from '../utils/navegacion';
@@ -43,6 +44,7 @@ const obtenerUbicacion = async () => {
 };
 
 export default function ResultadosScreen({ navigation, route, onAbrirPublicacion, onIrA }) {
+  const { user } = useAuth();
   const [filtros, setFiltros] = useState(route.params.filtros);
   const [items, setItems] = useState([]);
   const [pagina, setPagina] = useState(0);
@@ -51,6 +53,8 @@ export default function ResultadosScreen({ navigation, route, onAbrirPublicacion
   const [cargando, setCargando] = useState(true);
   const [cargandoMas, setCargandoMas] = useState(false);
   const [error, setError] = useState(null);
+  // null = datos frescos | 'exacta' = guardados de esta búsqueda | 'ultima' = guardados de la última búsqueda
+  const [datosGuardados, setDatosGuardados] = useState(null);
 
   const [orden, setOrden] = useState('RECIENTES');
   const [ubicacion, setUbicacion] = useState(null);
@@ -60,64 +64,95 @@ export default function ResultadosScreen({ navigation, route, onAbrirPublicacion
   const [panelAbierto, setPanelAbierto] = useState(false);
   const [borrador, setBorrador] = useState(filtros);
 
-  const cargar = useCallback(async (numeroPagina, filtrosActuales) => {
-    try {
-      if (numeroPagina === 0) setCargando(true);
-      else setCargandoMas(true);
-      setError(null);
-      const respuesta = await buscarPublicaciones({
-        ...filtrosActuales,
-        orden: 'RECIENTES', // lo de "más cercanos" lo ordena la app (el backend no recibe la ubicación)
-        pagina: numeroPagina,
-        tamanio: TAMANIO,
-      });
-      setItems((previos) =>
-        numeroPagina === 0 ? respuesta.contenido : [...previos, ...respuesta.contenido]
-      );
-      setPagina(respuesta.pagina);
-      setTotalPaginas(respuesta.totalPaginas);
-      setTotal(respuesta.totalElementos);
-    } catch (e) {
-      setError(getErrorMessage(e));
-    } finally {
-      setCargando(false);
-      setCargandoMas(false);
-    }
-  }, []);
+  const cargar = useCallback(
+    async (numeroPagina, filtrosActuales) => {
+      try {
+        if (numeroPagina === 0) setCargando(true);
+        else setCargandoMas(true);
+        setError(null);
+        let respuesta;
+        let deCache = false;
+        try {
+          respuesta = await buscarPublicaciones({
+            ...filtrosActuales,
+            orden: 'RECIENTES', // lo de "más cercanos" lo ordena la app (el backend no recibe la ubicación)
+            pagina: numeroPagina,
+            tamanio: TAMANIO,
+          });
+          setDatosGuardados(null);
+          if (numeroPagina === 0) guardarBusqueda(user?.usuarioId, filtrosActuales, respuesta);
+        } catch (e) {
+          // Si el servidor respondió (400, 500...) no es un problema de conexión: se muestra el error.
+          if (e.response || numeroPagina !== 0) throw e;
+          const guardada = await leerBusquedaGuardada(user?.usuarioId, filtrosActuales);
+          if (!guardada) throw e;
+          respuesta = guardada.respuesta;
+          deCache = true;
+          setDatosGuardados(guardada.exacta ? 'exacta' : 'ultima');
+        }
+        setItems((previos) =>
+          numeroPagina === 0 ? respuesta.contenido : [...previos, ...respuesta.contenido]
+        );
+        setPagina(respuesta.pagina);
+        setTotalPaginas(deCache ? 1 : respuesta.totalPaginas); // sin red no hay más páginas que pedir
+        setTotal(deCache ? respuesta.contenido.length : respuesta.totalElementos);
+      } catch (e) {
+        setError(getErrorMessage(e));
+      } finally {
+        setCargando(false);
+        setCargandoMas(false);
+      }
+    },
+    [user?.usuarioId]
+  );
 
   // "Más cercanos": para ordenar bien hay que tener TODOS los resultados, no solo la primera página.
   // Se piden todas las páginas (en lotes de 50) y después se muestran de a 10.
-  const cargarTodo = useCallback(async (filtrosActuales) => {
-    try {
-      setCargando(true);
-      setError(null);
-      let todos = [];
-      let numeroPagina = 0;
-      let paginasTotales = 1;
-      let elementosTotales = 0;
-      while (numeroPagina < paginasTotales && numeroPagina < MAX_PAGINAS) {
-        const respuesta = await buscarPublicaciones({
-          ...filtrosActuales,
-          orden: 'RECIENTES',
-          pagina: numeroPagina,
-          tamanio: TAMANIO_LOTE,
-        });
-        todos = todos.concat(respuesta.contenido);
-        paginasTotales = respuesta.totalPaginas;
-        elementosTotales = respuesta.totalElementos;
-        numeroPagina += 1;
+  const cargarTodo = useCallback(
+    async (filtrosActuales) => {
+      try {
+        setCargando(true);
+        setError(null);
+        let todos = [];
+        let numeroPagina = 0;
+        let paginasTotales = 1;
+        let elementosTotales = 0;
+        try {
+          while (numeroPagina < paginasTotales && numeroPagina < MAX_PAGINAS) {
+            const respuesta = await buscarPublicaciones({
+              ...filtrosActuales,
+              orden: 'RECIENTES',
+              pagina: numeroPagina,
+              tamanio: TAMANIO_LOTE,
+            });
+            todos = todos.concat(respuesta.contenido);
+            paginasTotales = respuesta.totalPaginas;
+            elementosTotales = respuesta.totalElementos;
+            numeroPagina += 1;
+          }
+          setDatosGuardados(null);
+        } catch (e) {
+          if (e.response) throw e;
+          // Sin red: se ordenan por cercanía los últimos resultados guardados.
+          const guardada = await leerBusquedaGuardada(user?.usuarioId, filtrosActuales);
+          if (!guardada) throw e;
+          todos = guardada.respuesta.contenido;
+          elementosTotales = todos.length;
+          setDatosGuardados(guardada.exacta ? 'exacta' : 'ultima');
+        }
+        setItems(todos);
+        setPagina(0);
+        setTotalPaginas(1); // ya se bajó todo: no quedan páginas por pedir al servidor
+        setTotal(elementosTotales);
+        setLimiteLocal(TAMANIO);
+      } catch (e) {
+        setError(getErrorMessage(e));
+      } finally {
+        setCargando(false);
       }
-      setItems(todos);
-      setPagina(0);
-      setTotalPaginas(1); // ya se bajó todo: no quedan páginas por pedir al servidor
-      setTotal(elementosTotales);
-      setLimiteLocal(TAMANIO);
-    } catch (e) {
-      setError(getErrorMessage(e));
-    } finally {
-      setCargando(false);
-    }
-  }, []);
+    },
+    [user?.usuarioId]
+  );
 
   // Se ejecuta al entrar, al aplicar filtros nuevos y al cambiar el orden.
   useEffect(() => {
@@ -183,6 +218,13 @@ export default function ResultadosScreen({ navigation, route, onAbrirPublicacion
   const encabezado = (
     <View style={styles.encabezado}>
       <Text style={styles.resumen}>{resumenFiltros(filtros)}</Text>
+      {datosGuardados ? (
+        <Text style={styles.aviso}>
+          {datosGuardados === 'exacta'
+            ? 'Sin conexión: mostramos los últimos resultados guardados de esta búsqueda. La información podría no estar actualizada.'
+            : 'Sin conexión: no hay resultados guardados de esta búsqueda, así que mostramos los de tu última búsqueda exitosa. La información podría no estar actualizada.'}
+        </Text>
+      ) : null}
       {!cargando && !error && (
         <Text style={styles.contador}>
           {total} {total === 1 ? 'resultado' : 'resultados'}
@@ -296,6 +338,13 @@ const styles = StyleSheet.create({
   lista: { padding: 16, paddingBottom: 40 },
   encabezado: { marginBottom: 12, gap: 8 },
   resumen: { fontSize: 15, fontWeight: '600', color: COLORS.text },
+  aviso: {
+    color: '#92400e',
+    backgroundColor: '#fef3c7',
+    padding: 8,
+    borderRadius: 6,
+    fontSize: 13,
+  },
   contador: { fontSize: 13, color: COLORS.muted },
   etiqueta: { fontSize: 13, fontWeight: '600', color: COLORS.muted, marginTop: 4 },
   panel: {
