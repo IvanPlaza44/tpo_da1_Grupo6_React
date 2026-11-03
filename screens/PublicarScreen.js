@@ -19,6 +19,7 @@ import {
 } from '../services/publicaciones';
 import { CATEGORIAS, TIPOS } from '../utils/etiquetas';
 import { aFechaISO, aHoraISO, franjaDeHora, parseFechaISO, parseHora } from '../utils/fechaLocal';
+import { borrarBorradorLocal, guardarBorradorLocal, leerBorradorLocal } from '../utils/borradorLocal';
 import { aOpciones } from '../utils/publicarOpciones';
 
 const TOTAL_PASOS = 4;
@@ -64,6 +65,7 @@ export default function PublicarScreen() {
   // modo: 'cargando' (buscando borradores) | 'borradores' (elegir uno) | 'formulario'
   const [modo, setModo] = useState('cargando');
   const [borradores, setBorradores] = useState([]);
+  const [borradorLocal, setBorradorLocal] = useState(null); // carga sin terminar guardada en este teléfono
   const [paso, setPaso] = useState(1);
   const [publicacionId, setPublicacionId] = useState(null);
   const [guardando, setGuardando] = useState(false);
@@ -78,21 +80,34 @@ export default function PublicarScreen() {
 
   const cambiar = (campo, valor) => setForm((anterior) => ({ ...anterior, [campo]: valor }));
 
-  // Al abrir la pantalla: si hay borradores guardados, se ofrece retomarlos.
+  // Al abrir la pantalla: se busca una carga sin terminar guardada en el teléfono (hecha sin conexión)
+  // y los borradores del servidor. Si hay alguno, se ofrece retomarlo.
   useEffect(() => {
     const buscar = async () => {
+      const local = await leerBorradorLocal(user?.usuarioId);
+      setBorradorLocal(local);
       try {
         const lista = await obtenerMisBorradores();
         setBorradores(lista);
-        setModo(lista.length > 0 ? 'borradores' : 'formulario');
+        setModo(lista.length > 0 || local ? 'borradores' : 'formulario');
       } catch (error) {
-        setModo('formulario'); // sin conexión: directo al formulario
+        // sin conexión: si hay una carga guardada se ofrece retomarla, si no, directo al formulario
+        setModo(local ? 'borradores' : 'formulario');
       }
     };
     buscar();
-  }, []);
+  }, [user?.usuarioId]);
+
+  // Mientras no hay conexión, cada cambio se guarda en el teléfono (no se pierde si se cierra la app).
+  useEffect(() => {
+    if (modo !== 'formulario' || conectado || guardadaSinConexion || paso > TOTAL_PASOS) return;
+    if (!form.tipo) return; // todavía no empezó
+    guardarBorradorLocal(user?.usuarioId, { paso, publicacionId, fotosSubidas, fotos, form });
+  }, [modo, conectado, guardadaSinConexion, paso, publicacionId, fotosSubidas, fotos, form, user?.usuarioId]);
 
   const reiniciar = () => {
+    borrarBorradorLocal(user?.usuarioId);
+    setBorradorLocal(null);
     setPaso(1);
     setPublicacionId(null);
     setFotos([]);
@@ -105,6 +120,32 @@ export default function PublicarScreen() {
   const empezarNuevo = () => {
     reiniciar();
     setModo('formulario');
+  };
+
+  // Retoma la carga que se estaba haciendo sin conexión: vuelve al mismo paso con todo lo escrito.
+  const retomarLocal = () => {
+    setPublicacionId(borradorLocal.publicacionId || null);
+    setFotosSubidas(borradorLocal.fotosSubidas || []);
+    setFotos(borradorLocal.fotos || []);
+    setFotosRemotas([]);
+    setForm(borradorLocal.form);
+    setPaso(borradorLocal.paso);
+    setModo('formulario');
+  };
+
+  const descartarLocal = () => {
+    Alert.alert('Descartar carga', '¿Eliminar la carga sin terminar guardada en este teléfono?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Eliminar',
+        style: 'destructive',
+        onPress: async () => {
+          await borrarBorradorLocal(user?.usuarioId);
+          setBorradorLocal(null);
+          if (borradores.length === 0) empezarNuevo();
+        },
+      },
+    ]);
   };
 
   // Carga el borrador del servidor, rellena el formulario y salta al primer paso incompleto.
@@ -153,7 +194,7 @@ export default function PublicarScreen() {
             await eliminarPublicacion(item.id);
             const restantes = borradores.filter((b) => b.id !== item.id);
             setBorradores(restantes);
-            if (restantes.length === 0) empezarNuevo();
+            if (restantes.length === 0 && !borradorLocal) empezarNuevo();
           } catch (error) {
             Alert.alert('Error', getErrorMessage(error));
           }
@@ -181,6 +222,8 @@ export default function PublicarScreen() {
   const siguiente = async () => {
     try {
       setGuardando(true);
+      // Cuando el servidor ya tiene el borrador, la copia local sobra y se borra.
+      let respaldado = conectado && !!publicacionId;
 
       if (paso === 1) {
         if (!form.tipo) return Alert.alert('Falta algo', 'Elegí si perdiste o encontraste algo');
@@ -190,6 +233,7 @@ export default function PublicarScreen() {
             ? await actualizarPublicacion(publicacionId, { tipo: form.tipo })
             : await crearPublicacion({ tipo: form.tipo });
           setPublicacionId(creada.id);
+          respaldado = true;
         }
       }
 
@@ -257,6 +301,7 @@ export default function PublicarScreen() {
         if (!conectado) {
           // SIN CONEXIÓN: queda en la cola, "pendiente de envío"
           await agregarPendiente(user.usuarioId, item);
+          await borrarBorradorLocal(user.usuarioId);
           setGuardadaSinConexion(true);
         } else {
           // CON CONEXIÓN: se envía ahora; si falla a la mitad, recordamos hasta dónde llegó.
@@ -264,9 +309,11 @@ export default function PublicarScreen() {
             setPublicacionId(p.publicacionId);
             setFotosSubidas(p.fotosSubidas);
           });
+          await borrarBorradorLocal(user.usuarioId);
         }
       }
 
+      if (respaldado && paso < TOTAL_PASOS) await borrarBorradorLocal(user.usuarioId);
       setPaso((p) => Math.min(p + 1, TOTAL_PASOS + 1));
     } catch (error) {
       Alert.alert('Error', getErrorMessage(error));
@@ -281,6 +328,22 @@ export default function PublicarScreen() {
     return (
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.titulo}>Tenés borradores sin terminar</Text>
+        {borradorLocal ? (
+          <View style={styles.tarjeta}>
+            <Text style={styles.tarjetaTitulo}>{borradorLocal.form.titulo || 'Sin título'}</Text>
+            <Text style={styles.ayudaIzq}>
+              Guardado en este teléfono (sin conexión) · Paso {borradorLocal.paso} de {TOTAL_PASOS}
+            </Text>
+            <View style={styles.botones}>
+              <Pressable style={[styles.boton, styles.botonSecundario]} onPress={descartarLocal}>
+                <Text style={styles.botonSecundarioTexto}>Descartar</Text>
+              </Pressable>
+              <Pressable style={styles.boton} onPress={retomarLocal}>
+                <Text style={styles.botonTexto}>Retomar</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
         {borradores.map((b) => (
           <View key={b.id} style={styles.tarjeta}>
             <Text style={styles.tarjetaTitulo}>{b.titulo || 'Sin título'}</Text>
@@ -297,7 +360,21 @@ export default function PublicarScreen() {
             </View>
           </View>
         ))}
-        <Pressable style={[styles.boton, styles.botonSecundario]} onPress={empezarNuevo}>
+        <Pressable
+          style={[styles.boton, styles.botonSecundario]}
+          onPress={() =>
+            borradorLocal
+              ? Alert.alert(
+                  'Empezar de nuevo',
+                  'Ya tenés una carga guardada en este teléfono. Si empezás una nueva, se reemplaza.',
+                  [
+                    { text: 'Cancelar', style: 'cancel' },
+                    { text: 'Empezar nueva', style: 'destructive', onPress: empezarNuevo },
+                  ]
+                )
+              : empezarNuevo()
+          }
+        >
           <Text style={styles.botonSecundarioTexto}>Empezar una publicación nueva</Text>
         </Pressable>
       </ScrollView>
