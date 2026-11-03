@@ -11,6 +11,8 @@ import {
 } from 'react-native';
 import BotonSeguir from '../components/BotonSeguir';
 import { EstadoCargando } from '../components/EstadoPantalla';
+import Aviso from '../components/ui/Aviso';
+import StatusBadge from '../components/ui/StatusBadge';
 import { COLORS } from '../config';
 import { useAuth } from '../hooks/useAuth';
 import { useConexion } from '../hooks/useConexion';
@@ -18,7 +20,7 @@ import { getErrorMessage } from '../services/api';
 import { obtenerPublicacion } from '../services/publicaciones';
 import { obtenerPerfilPublico } from '../services/usuarios';
 import { conCacheReciente } from '../utils/cache';
-import { CATEGORIAS, ESTADOS_PUBLICACION, TIPOS } from '../utils/etiquetas';
+import { CATEGORIAS } from '../utils/etiquetas';
 import { formatearFecha } from '../utils/fechas';
 import { calcularResumenReputacion } from '../utils/insignias';
 
@@ -148,9 +150,9 @@ export default function DetalleScreen({ publicacionId, onVolver, onAbrirPerfil, 
     <ScrollView>
       {botonVolver}
       {desactualizado ? (
-        <Text style={styles.avisoDesactualizado}>
+        <Aviso>
           Sin conexión: estás viendo la última versión guardada de esta publicación. Puede no estar actualizada.
-        </Text>
+        </Aviso>
       ) : null}
 
       {fotos.length > 0 ? (
@@ -181,8 +183,8 @@ export default function DetalleScreen({ publicacionId, onVolver, onAbrirPerfil, 
 
       <View style={styles.contenido}>
         <View style={styles.fila}>
-          <Text style={styles.etiquetaTipo}>{TIPOS[pub.tipo] || pub.tipo}</Text>
-          <Text style={styles.estado}>{ESTADOS_PUBLICACION[pub.estado] || pub.estado}</Text>
+          <StatusBadge tipo={pub.tipo} />
+          <StatusBadge estado={pub.estado} />
         </View>
 
         <Text style={styles.titulo}>{pub.titulo || 'Sin título'}</Text>
@@ -247,9 +249,7 @@ export default function DetalleScreen({ publicacionId, onVolver, onAbrirPerfil, 
               </Pressable>
             )}
             {!conectado ? (
-              <Text style={styles.avisoSinConexion}>
-                Necesitás conexión para reclamar o seguir esta publicación.
-              </Text>
+              <Aviso>Necesitás conexión para reclamar o seguir esta publicación.</Aviso>
             ) : null}
           </View>
         )}
@@ -277,30 +277,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   contenido: { padding: 16, gap: 10, paddingBottom: 40 },
-  fila: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  etiquetaTipo: { color: COLORS.primary, fontWeight: '700' },
-  estado: {
-    backgroundColor: '#dbeafe',
-    color: COLORS.primary,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 12,
-    fontSize: 12,
-    fontWeight: '600',
-    overflow: 'hidden',
-  },
-  titulo: { fontSize: 22, fontWeight: 'bold', color: COLORS.text },
+  fila: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
+  titulo: { fontSize: 26, fontWeight: '800', color: COLORS.text, letterSpacing: -0.3 },
   descripcion: { fontSize: 15, color: COLORS.text },
   dato: { flexDirection: 'row', gap: 8 },
   datoEtiqueta: { color: COLORS.muted, width: 130 },
   datoValor: { color: COLORS.text, flexShrink: 1 },
   nota: { color: COLORS.muted, fontSize: 13, fontStyle: 'italic' },
   tarjeta: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 10,
-    padding: 14,
-    gap: 6,
+    backgroundColor: COLORS.surface,
+    borderRadius: 16,
+    padding: 16,
+    gap: 8,
     marginTop: 6,
   },
   seccion: { color: COLORS.muted, fontSize: 13 },
@@ -309,28 +297,13 @@ const styles = StyleSheet.create({
   estadoReclamo: { color: COLORS.text, fontWeight: '600' },
   boton: {
     backgroundColor: COLORS.primary,
-    borderRadius: 8,
-    paddingVertical: 12,
+    borderRadius: 999,
+    paddingVertical: 14,
     paddingHorizontal: 16,
     alignItems: 'center',
   },
   botonInactivo: { opacity: 0.5 },
   botonTexto: { color: '#fff', fontWeight: 'bold' },
-  botonSecundario: { backgroundColor: 'transparent', borderWidth: 1, borderColor: COLORS.border },
-  botonSecundarioTexto: { color: COLORS.text },
-  avisoDesactualizado: {
-    color: '#92400e',
-    backgroundColor: '#fef3c7',
-    padding: 8,
-    marginHorizontal: 16,
-    borderRadius: 6,
-    fontSize: 13,
-  },
-  avisoSinConexion: {
-    color: '#92400e',
-    backgroundColor: '#fef3c7',
-    padding: 8,
-    borderRadius: 6,
-    fontSize: 13,
-  },
+  botonSecundario: { backgroundColor: COLORS.surface },
+  botonSecundarioTexto: { color: COLORS.text, fontWeight: '700' },
 });

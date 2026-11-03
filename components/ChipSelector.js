@@ -13,7 +13,7 @@ export default function ChipSelector({ opciones, valor, onChange }) {
         return (
           <Pressable
             key={op.valor}
-            style={[styles.chip, activa && styles.chipActivo]}
+            style={[styles.chip, activa && (op.valor === 'PERDIDO' ? styles.perdido : op.valor === 'ENCONTRADO' ? styles.encontrado : styles.chipActivo)]}
             onPress={() => onChange(op.valor)}
           >
             <Text style={[styles.texto, activa && styles.textoActivo]}>{op.label}</Text>
@@ -26,8 +26,10 @@ export default function ChipSelector({ opciones, valor, onChange }) {
 
 const styles = StyleSheet.create({
   fila: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: COLORS.border },
-  chipActivo: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  texto: { color: COLORS.text },
-  textoActivo: { color: '#fff', fontWeight: 'bold' },
+  chip: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 999, backgroundColor: COLORS.surface },
+  chipActivo: { backgroundColor: COLORS.primary },
+  perdido: { backgroundColor: COLORS.perdido },
+  encontrado: { backgroundColor: COLORS.encontrado },
+  texto: { color: COLORS.text, fontWeight: '600' },
+  textoActivo: { color: '#fff' },
 });

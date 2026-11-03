@@ -5,6 +5,7 @@ import * as Location from 'expo-location';
 import ChipSelector from '../components/ChipSelector';
 import { EstadoCargando } from '../components/EstadoPantalla';
 import SelectorFotos from '../components/SelectorFotos';
+import PasoIndicador from '../components/ui/PasoIndicador';
 import { COLORS } from '../config';
 import { useAuth } from '../hooks/useAuth';
 import { useConexion } from '../hooks/useConexion';
@@ -411,7 +412,7 @@ export default function PublicarScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.progreso}>Paso {paso} de {TOTAL_PASOS}</Text>
+      <PasoIndicador actual={paso} total={TOTAL_PASOS} etiqueta={`Paso ${paso} de ${TOTAL_PASOS}`} />
 
       {paso === 1 && (
         <>
@@ -589,22 +590,21 @@ export default function PublicarScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, gap: 12 },
+  container: { padding: 16, paddingBottom: 40, gap: 12 },
   centro: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 8 },
-  progreso: { color: COLORS.muted },
-  titulo: { fontSize: 20, fontWeight: 'bold', color: COLORS.text },
-  ayuda: { color: COLORS.muted, textAlign: 'center' },
-  ayudaIzq: { color: COLORS.muted },
-  avisoSinConexion: { color: '#92400e', backgroundColor: '#fef3c7', padding: 8, borderRadius: 6, fontSize: 13 },
-  etiqueta: { color: COLORS.text, fontWeight: '600', marginTop: 4 },
-  input: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 10, color: COLORS.text },
-  inputGrande: { minHeight: 90, textAlignVertical: 'top' },
+  titulo: { fontSize: 26, fontWeight: '800', color: COLORS.text, letterSpacing: -0.3 },
+  ayuda: { color: COLORS.muted, textAlign: 'center', lineHeight: 20 },
+  ayudaIzq: { color: COLORS.muted, lineHeight: 20 },
+  avisoSinConexion: { color: COLORS.warning, backgroundColor: COLORS.warningSoft, padding: 12, borderRadius: 12, fontSize: 13, lineHeight: 18 },
+  etiqueta: { color: COLORS.text, fontWeight: '700', marginTop: 4 },
+  input: { backgroundColor: COLORS.surface, borderRadius: 12, padding: 12, color: COLORS.text, fontSize: 15 },
+  inputGrande: { minHeight: 100, textAlignVertical: 'top' },
   botones: { flexDirection: 'row', gap: 10, marginTop: 12 },
-  boton: { flex: 1, backgroundColor: COLORS.primary, padding: 12, borderRadius: 8, alignItems: 'center' },
+  boton: { flex: 1, backgroundColor: COLORS.primary, paddingVertical: 14, borderRadius: 999, alignItems: 'center' },
   botonInactivo: { opacity: 0.6 },
-  botonTexto: { color: '#fff', fontWeight: 'bold' },
-  botonSecundario: { backgroundColor: 'transparent', borderWidth: 1, borderColor: COLORS.border },
-  botonSecundarioTexto: { color: COLORS.text },
-  tarjeta: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 12, gap: 4 },
-  tarjetaTitulo: { fontWeight: 'bold', color: COLORS.text },
+  botonTexto: { color: '#fff', fontWeight: '700' },
+  botonSecundario: { backgroundColor: COLORS.surface },
+  botonSecundarioTexto: { color: COLORS.text, fontWeight: '700' },
+  tarjeta: { backgroundColor: COLORS.surface, borderRadius: 16, padding: 14, gap: 4 },
+  tarjetaTitulo: { fontWeight: '700', color: COLORS.text },
 });

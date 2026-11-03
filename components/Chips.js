@@ -1,5 +1,5 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { COLORS } from '../config';
+import { COLORS, RADIUS } from '../config';
 
 // Fila de opciones seleccionables.
 // Con permitirVacio, tocar la opción ya elegida la deselecciona (onChange recibe null).
@@ -25,14 +25,12 @@ export default function Chips({ opciones, valor, onChange, permitirVacio = false
 const styles = StyleSheet.create({
   fila: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
-    paddingVertical: 8,
+    paddingVertical: 9,
     paddingHorizontal: 14,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.pill,
+    backgroundColor: COLORS.surface,
   },
-  chipActivo: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  texto: { color: COLORS.text },
-  textoActivo: { color: '#fff', fontWeight: '600' },
+  chipActivo: { backgroundColor: COLORS.primary },
+  texto: { color: COLORS.text, fontWeight: '600', fontSize: 14 },
+  textoActivo: { color: COLORS.white },
 });

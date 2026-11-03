@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
     padding: 18,
     paddingBottom: 32,
     gap: 14,
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.background,
   },
   center: {
     flex: 1,
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     gap: 12,
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.background,
   },
   topBar: {
     flexDirection: 'row',
@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
     backgroundColor: '#ffffff',
     gap: 8,
-    shadowColor: '#0f172a',
+    shadowColor: COLORS.text,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.03,
     shadowRadius: 6,
@@ -302,7 +302,7 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#0f172a',
+    color: COLORS.text,
   },
   solidarioBanner: {
     backgroundColor: '#fef3c7',
@@ -342,7 +342,7 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
     backgroundColor: '#ffffff',
     gap: 12,
-    shadowColor: '#0f172a',
+    shadowColor: COLORS.text,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.03,
     shadowRadius: 6,
@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#0f172a',
+    color: COLORS.text,
   },
   reputationBadge: {
     fontSize: 12,
@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 6,
     borderRadius: 10,
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.background,
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
@@ -393,7 +393,7 @@ const styles = StyleSheet.create({
   metricNumber: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#0f172a',
+    color: COLORS.text,
   },
   metricLabel: {
     fontSize: 11,

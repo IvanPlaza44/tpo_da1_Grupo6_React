@@ -1,12 +1,6 @@
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { COLORS } from '../config';
-
-const ESTADOS = {
-  PENDIENTE: { texto: 'Pendiente', color: '#b45309', fondo: '#fef3c7' },
-  ACEPTADO: { texto: 'Aceptado', color: '#15803d', fondo: '#dcfce7' },
-  RECHAZADO: { texto: 'Rechazado', color: COLORS.danger, fondo: '#fee2e2' },
-  VENCIDO: { texto: 'Vencido', color: COLORS.muted, fondo: '#f3f4f6' },
-};
+import { COLORS, RADIUS } from '../config';
+import StatusBadge from './ui/StatusBadge';
 
 function formatearFecha(iso) {
   if (!iso) return '';
@@ -34,7 +28,6 @@ export default function TarjetaReclamo({
   onPress,
   onPuntoEncuentro,
 }) {
-  const estado = ESTADOS[reclamo.estado] || ESTADOS.PENDIENTE;
   const pendiente = reclamo.estado === 'PENDIENTE';
   const aceptado = reclamo.estado === 'ACEPTADO';
   const esMio = reclamo.publicacionTipo === 'ENCONTRADO';
@@ -46,9 +39,7 @@ export default function TarjetaReclamo({
         <Text style={styles.titulo} numberOfLines={1}>
           {reclamo.publicacionTitulo || `Publicación #${reclamo.publicacionId}`}
         </Text>
-        <View style={[styles.estado, { backgroundColor: estado.fondo }]}>
-          <Text style={[styles.estadoTexto, { color: estado.color }]}>{estado.texto}</Text>
-        </View>
+        <StatusBadge estado={reclamo.estado} />
       </View>
 
       <Text style={styles.detalle}>
@@ -106,23 +97,23 @@ export default function TarjetaReclamo({
 }
 
 const styles = StyleSheet.create({
-  tarjeta: { padding: 14, borderRadius: 10, borderWidth: 1, borderColor: COLORS.border, backgroundColor: '#fff', gap: 4 },
+  tarjeta: { padding: 16, borderRadius: RADIUS.md, backgroundColor: COLORS.surface, gap: 6, marginBottom: 4 },
   encabezado: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   titulo: { flex: 1, fontSize: 15, fontWeight: 'bold', color: COLORS.text },
   estado: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
   estadoTexto: { fontSize: 12, fontWeight: '600' },
   detalle: { fontSize: 13, color: COLORS.muted },
-  vence: { fontSize: 12, color: '#b45309' },
+  vence: { fontSize: 12, color: COLORS.warning, fontWeight: '600' },
   contenido: { marginTop: 6, gap: 4 },
   linea: { fontSize: 14, color: COLORS.text },
   etiqueta: { fontWeight: '600' },
   foto: { width: '100%', height: 160, borderRadius: 8, marginTop: 4 },
   acciones: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 8 },
   sinConexion: { fontSize: 13, color: COLORS.muted, fontStyle: 'italic' },
-  boton: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 8 },
+  boton: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 999 },
   botonAceptar: { backgroundColor: COLORS.primary },
-  botonAceptarTexto: { color: '#fff', fontWeight: '600' },
-  botonRechazar: { borderWidth: 1, borderColor: COLORS.danger },
-  botonRechazarTexto: { color: COLORS.danger, fontWeight: '600' },
+  botonAceptarTexto: { color: COLORS.white, fontWeight: '700' },
+  botonRechazar: { backgroundColor: COLORS.dangerSoft },
+  botonRechazarTexto: { color: COLORS.danger, fontWeight: '700' },
   botonEncuentro: { backgroundColor: COLORS.primary, alignSelf: 'flex-start', marginTop: 8 },
 });

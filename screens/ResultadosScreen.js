@@ -14,6 +14,7 @@ import BotonGuardarAlerta from '../components/BotonGuardarAlerta';
 import Chips from '../components/Chips';
 import ResultadoCard from '../components/ResultadoCard';
 import { COLORS } from '../config';
+import Aviso from '../components/ui/Aviso';
 import { CATEGORIAS, ORDENES, RANGOS } from '../config/filtros';
 import { useAuth } from '../hooks/useAuth';
 import { getErrorMessage } from '../services/api';
@@ -219,11 +220,11 @@ export default function ResultadosScreen({ navigation, route, onAbrirPublicacion
     <View style={styles.encabezado}>
       <Text style={styles.resumen}>{resumenFiltros(filtros)}</Text>
       {datosGuardados ? (
-        <Text style={styles.aviso}>
+        <Aviso>
           {datosGuardados === 'exacta'
             ? 'Sin conexión: mostramos los últimos resultados guardados de esta búsqueda. La información podría no estar actualizada.'
             : 'Sin conexión: no hay resultados guardados de esta búsqueda, así que mostramos los de tu última búsqueda exitosa. La información podría no estar actualizada.'}
-        </Text>
+        </Aviso>
       ) : null}
       {!cargando && !error && (
         <Text style={styles.contador}>
@@ -335,51 +336,41 @@ export default function ResultadosScreen({ navigation, route, onAbrirPublicacion
 }
 
 const styles = StyleSheet.create({
-  lista: { padding: 16, paddingBottom: 40 },
-  encabezado: { marginBottom: 12, gap: 8 },
-  resumen: { fontSize: 15, fontWeight: '600', color: COLORS.text },
-  aviso: {
-    color: '#92400e',
-    backgroundColor: '#fef3c7',
-    padding: 8,
-    borderRadius: 6,
-    fontSize: 13,
-  },
+  lista: { padding: 16, paddingBottom: 40, gap: 4 },
+  encabezado: { marginBottom: 8, gap: 10 },
+  resumen: { fontSize: 16, fontWeight: '700', color: COLORS.text },
   contador: { fontSize: 13, color: COLORS.muted },
-  etiqueta: { fontSize: 13, fontWeight: '600', color: COLORS.muted, marginTop: 4 },
+  etiqueta: { fontSize: 13, fontWeight: '700', color: COLORS.muted, marginTop: 4 },
   panel: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 10,
-    padding: 12,
+    backgroundColor: COLORS.surface,
+    borderRadius: 16,
+    padding: 14,
     gap: 8,
   },
   input: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 8,
+    backgroundColor: COLORS.background,
+    borderRadius: 10,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
     fontSize: 15,
     color: COLORS.text,
   },
   botonPrincipal: {
     backgroundColor: COLORS.primary,
-    borderRadius: 8,
-    paddingVertical: 12,
+    borderRadius: 999,
+    paddingVertical: 14,
     alignItems: 'center',
     marginTop: 8,
   },
   botonPrincipalTexto: { color: '#fff', fontWeight: '700' },
   botonSecundario: {
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-    borderRadius: 8,
-    paddingVertical: 10,
+    backgroundColor: COLORS.surface,
+    borderRadius: 999,
+    paddingVertical: 12,
     alignItems: 'center',
     marginTop: 8,
   },
-  botonSecundarioTexto: { color: COLORS.primary, fontWeight: '600' },
+  botonSecundarioTexto: { color: COLORS.primary, fontWeight: '700' },
   espacio: { marginVertical: 24 },
   vacio: { alignItems: 'stretch', paddingVertical: 24 },
   vacioTitulo: { fontSize: 18, fontWeight: '700', color: COLORS.text, textAlign: 'center' },

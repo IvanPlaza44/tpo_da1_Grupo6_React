@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
 } from 'react-native';
 import { useAuth } from '../hooks/useAuth';
 import { COLORS } from '../config';
@@ -88,9 +89,7 @@ export default function LoginScreen({ navigation }) {
           showsVerticalScrollIndicator={false}
         >
         <View style={styles.headerSection}>
-          <View style={styles.brandMark}>
-            <Text style={styles.brandMarkText}>H</Text>
-          </View>
+          <Image source={require('../assets/hallado-logo.png')} style={styles.logo} accessibilityLabel="Hallado" />
           <Text style={styles.brandTitle}>Hallado</Text>
           <Text style={styles.brandSubtitle}>Iniciá sesión en tu cuenta</Text>
         </View>
@@ -222,7 +221,7 @@ export default function LoginScreen({ navigation }) {
 const styles = StyleSheet.create({
   keyboardContainer: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.background,
   },
   scrollContainer: {
     flexGrow: 1,
@@ -234,38 +233,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 28,
   },
-  brandMark: {
-    width: 52,
-    height: 52,
-    borderRadius: 14,
-    backgroundColor: COLORS.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  brandMarkText: {
-    color: '#ffffff',
-    fontSize: 26,
-    fontWeight: '800',
-  },
+  logo: { width: 72, height: 72, marginBottom: 16 },
   brandTitle: {
     fontSize: 26,
     fontWeight: '800',
-    color: '#0f172a',
+    color: COLORS.text,
     letterSpacing: -0.5,
   },
   brandSubtitle: {
     fontSize: 14,
-    color: '#64748b',
+    color: COLORS.muted,
     marginTop: 4,
   },
   card: {
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.surface,
     borderRadius: 16,
     padding: 22,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    shadowColor: '#0f172a',
+    borderColor: COLORS.border,
+    shadowColor: COLORS.text,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
@@ -297,7 +283,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#334155',
+    color: COLORS.text,
     marginBottom: 6,
   },
   forgotLink: {
@@ -309,21 +295,21 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.background,
     borderWidth: 1,
-    borderColor: '#cbd5e1',
+    borderColor: COLORS.border,
     borderRadius: 10,
     paddingHorizontal: 14,
   },
   inputWrapperFocused: {
     borderColor: COLORS.primary,
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.surface,
   },
   inputField: {
     flex: 1,
     paddingVertical: 12,
     fontSize: 15,
-    color: '#0f172a',
+    color: COLORS.text,
   },
   actionBtn: {
     paddingLeft: 10,
@@ -331,7 +317,7 @@ const styles = StyleSheet.create({
   },
   clearText: {
     fontSize: 12,
-    color: '#94a3b8',
+    color: COLORS.muted,
     fontWeight: '600',
   },
   toggleText: {
@@ -350,7 +336,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   primaryButtonText: {
-    color: '#ffffff',
+    color: COLORS.surface,
     fontSize: 15,
     fontWeight: '700',
   },
@@ -377,7 +363,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 14,
-    color: '#64748b',
+    color: COLORS.muted,
   },
   footerLink: {
     fontSize: 14,

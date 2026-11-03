@@ -102,7 +102,7 @@ export default function TarjetaCaso({ caso, onAbrirPerfil, onValorar, onAgradece
 }
 
 const styles = StyleSheet.create({
-  tarjeta: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, padding: 12 },
+  tarjeta: { backgroundColor: COLORS.surface, borderRadius: 16, padding: 14 },
   cuerpo: { flexDirection: 'row', gap: 12 },
   valoracion: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderColor: COLORS.border },
   valoracionFila: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },

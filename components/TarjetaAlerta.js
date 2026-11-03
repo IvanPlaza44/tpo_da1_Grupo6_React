@@ -1,5 +1,5 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { COLORS } from '../config';
+import { COLORS, RADIUS } from '../config';
 import { CATEGORIAS, RANGOS_FECHA, TIPOS } from '../utils/etiquetas';
 import { formatearFecha } from '../utils/fechas';
 import Badge from './Badge';
@@ -48,16 +48,7 @@ export default function TarjetaAlerta({ alerta, ocupada = false, onPress, onAlte
           <Badge texto={alerta.cantidadNovedades > 0 ? String(alerta.cantidadNovedades) : null} />
         ) : null}
       </View>
-      {criterios.length > 0 ? (
-        criterios.map(([etiqueta, valor]) => (
-          <Text key={etiqueta} style={styles.criterio}>
-            <Text style={styles.etiqueta}>{etiqueta}: </Text>
-            {valor}
-          </Text>
-        ))
-      ) : (
-        <Text style={styles.criterio}>Sin filtros</Text>
-      )}
+      <Text style={styles.criterio}>{criterios.map(([, valor]) => valor).join(' · ') || 'Sin filtros'}</Text>
       <Text style={[styles.novedades, conNovedades && styles.conNovedades]}>
         {textoNovedades(alerta)}
       </Text>
@@ -83,28 +74,27 @@ export default function TarjetaAlerta({ alerta, ocupada = false, onPress, onAlte
 }
 
 const styles = StyleSheet.create({
-  tarjeta: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, padding: 12, gap: 2 },
-  pausada: { backgroundColor: '#f3f4f6' },
-  tarjetaConNovedades: { borderColor: COLORS.primary, borderWidth: 2 },
+  tarjeta: { backgroundColor: COLORS.surface, borderRadius: RADIUS.md, padding: 16, gap: 6 },
+  pausada: { opacity: 0.65 },
+  tarjetaConNovedades: { borderWidth: 1.5, borderColor: COLORS.primary },
   presionada: { opacity: 0.6 },
-  encabezado: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 4 },
-  nombre: { flex: 1, fontSize: 16, fontWeight: 'bold', color: COLORS.text },
+  encabezado: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  nombre: { flex: 1, fontSize: 16, fontWeight: '700', color: COLORS.text },
   etiquetaPausada: {
     color: COLORS.muted,
     fontSize: 12,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    fontWeight: '700',
+    backgroundColor: COLORS.background,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
   },
   acciones: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 16, marginTop: 8 },
   accion: { paddingVertical: 4 },
-  accionTexto: { color: COLORS.primary, fontWeight: 'bold' },
+  accionTexto: { color: COLORS.primary, fontWeight: '700' },
   eliminar: { color: COLORS.danger },
   deshabilitado: { opacity: 0.4 },
-  criterio: { color: COLORS.text },
-  etiqueta: { color: COLORS.muted },
-  novedades: { marginTop: 6, color: COLORS.muted },
-  conNovedades: { color: COLORS.primary, fontWeight: 'bold' },
+  criterio: { color: COLORS.muted, lineHeight: 18 },
+  novedades: { marginTop: 4, color: COLORS.muted },
+  conNovedades: { color: COLORS.primary, fontWeight: '700' },
 });
