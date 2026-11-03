@@ -404,7 +404,7 @@ export default function ForgotPasswordScreen({ navigation }) {
 const styles = StyleSheet.create({
   keyboardContainer: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.background,
   },
   scrollContainer: {
     flexGrow: 1,
@@ -418,7 +418,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#0f172a',
+    color: COLORS.text,
     letterSpacing: -0.4,
   },
   subtitle: {
@@ -445,7 +445,7 @@ const styles = StyleSheet.create({
     padding: 22,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    shadowColor: '#0f172a',
+    shadowColor: COLORS.text,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
@@ -475,7 +475,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   infoText: {
-    color: '#1d4ed8',
+    color: COLORS.primary,
     fontSize: 13,
     fontWeight: '500',
   },
@@ -491,7 +491,7 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.background,
     borderWidth: 1,
     borderColor: '#cbd5e1',
     borderRadius: 10,
@@ -505,7 +505,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     fontSize: 15,
-    color: '#0f172a',
+    color: COLORS.text,
   },
   actionBtn: {
     paddingLeft: 10,
@@ -517,7 +517,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   otpInput: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.background,
     borderWidth: 1,
     borderColor: '#cbd5e1',
     borderRadius: 10,
@@ -526,7 +526,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 8,
     textAlign: 'center',
-    color: '#0f172a',
+    color: COLORS.text,
   },
   primaryButton: {
     backgroundColor: COLORS.primary,

@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { COLORS } from '../config';
+import { FlatList, StyleSheet, View } from 'react-native';
+import { SPACE } from '../config';
 import { listarHistorial } from '../services/historial';
 import useListado from '../hooks/useListado';
 import { EstadoCargando, EstadoError, EstadoVacio } from '../components/EstadoPantalla';
@@ -8,6 +8,7 @@ import TarjetaCaso from '../components/TarjetaCaso';
 import FiltrosHistorial, { FILTROS_VACIOS, hayFiltros } from '../components/FiltrosHistorial';
 import ModalValoracion from '../components/ModalValoracion';
 import ModalAgradecimiento from '../components/ModalAgradecimiento';
+import Segmented from '../components/ui/Segmented';
 
 const PESTANIAS = [
   {
@@ -25,7 +26,7 @@ const PESTANIAS = [
 ];
 
 // onAbrirPerfil(usuarioId): lo conecta la navegación para ir al perfil público de la contraparte.
-export default function HistorialScreen({ onAbrirPerfil }) {
+export default function HistorialScreen({ onAbrirPerfil, onIrA }) {
   const [rol, setRol] = useState(PESTANIAS[0].rol);
   const [filtros, setFiltros] = useState(FILTROS_VACIOS);
   const pestania = PESTANIAS.find((p) => p.rol === rol);
@@ -33,23 +34,19 @@ export default function HistorialScreen({ onAbrirPerfil }) {
   return (
     <View style={styles.container}>
       <View style={styles.selector}>
-        {PESTANIAS.map((p) => (
-          <Pressable
-            key={p.rol}
-            style={[styles.opcion, p.rol === rol && styles.opcionActiva]}
-            onPress={() => setRol(p.rol)}
-          >
-            <Text style={[styles.opcionTexto, p.rol === rol && styles.opcionTextoActiva]}>{p.titulo}</Text>
-          </Pressable>
-        ))}
+        <Segmented
+          opciones={PESTANIAS.map((p) => ({ value: p.rol, label: p.titulo }))}
+          valor={rol}
+          onChange={setRol}
+        />
       </View>
       <FiltrosHistorial filtros={filtros} onCambiar={setFiltros} />
-      <ListaCasos key={rol} pestania={pestania} filtros={filtros} onAbrirPerfil={onAbrirPerfil} />
+      <ListaCasos key={rol} pestania={pestania} filtros={filtros} onAbrirPerfil={onAbrirPerfil} onIrA={onIrA} />
     </View>
   );
 }
 
-function ListaCasos({ pestania, filtros, onAbrirPerfil }) {
+function ListaCasos({ pestania, filtros, onAbrirPerfil, onIrA }) {
   const { desde, hasta, tipo } = filtros;
   const cargar = useCallback(
     () => listarHistorial({ rol: pestania.rol, desde, hasta, tipo }),
@@ -92,7 +89,12 @@ function ListaCasos({ pestania, filtros, onAbrirPerfil }) {
           filtrado ? (
             <EstadoVacio titulo="No hay casos con estos filtros" mensaje="Probá con otro rango de fechas o tipo." />
           ) : (
-            <EstadoVacio titulo={pestania.vacio} mensaje={pestania.vacioMensaje} />
+            <EstadoVacio
+              titulo={pestania.vacio}
+              mensaje={pestania.vacioMensaje}
+              accionTexto="Buscar"
+              onAccion={() => onIrA?.('buscar')}
+            />
           )
         }
         renderItem={({ item }) => (
@@ -112,11 +114,7 @@ function ListaCasos({ pestania, filtros, onAbrirPerfil }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  selector: { flexDirection: 'row', margin: 16, marginBottom: 0, borderWidth: 1, borderColor: COLORS.primary, borderRadius: 6, overflow: 'hidden' },
-  opcion: { flex: 1, paddingVertical: 8, alignItems: 'center' },
-  opcionActiva: { backgroundColor: COLORS.primary },
-  opcionTexto: { color: COLORS.primary },
-  opcionTextoActiva: { color: '#fff', fontWeight: 'bold' },
-  lista: { padding: 16, gap: 8 },
+  selector: { marginHorizontal: SPACE.lg, marginTop: SPACE.md },
+  lista: { padding: SPACE.lg, gap: 8 },
   vacio: { flexGrow: 1 },
 });

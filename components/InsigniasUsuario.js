@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#0f172a',
+    color: COLORS.text,
   },
   countBadge: {
     backgroundColor: '#f1f5f9',
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.background,
   },
   badgeSolidario: {
     borderColor: '#fcd34d',
@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
   badgeTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#0f172a',
+    color: COLORS.text,
   },
   badgeTitleSolidario: {
     color: '#92400e',
@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
   },
   progressCounter: {
     fontSize: 12,
-    color: '#0f172a',
+    color: COLORS.text,
     fontWeight: '700',
   },
   progressTrack: {

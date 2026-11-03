@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
   contenedor: { paddingHorizontal: 16, paddingTop: 12, gap: 8 },
   fila: { flexDirection: 'row', gap: 8 },
   chip: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 16, paddingVertical: 6, paddingHorizontal: 12 },
-  chipActivo: { borderColor: COLORS.primary, backgroundColor: '#eff6ff' },
+  chipActivo: { backgroundColor: COLORS.primarySoft },
   chipTexto: { color: COLORS.muted },
   chipTextoActivo: { color: COLORS.primary, fontWeight: 'bold' },
   fecha: {

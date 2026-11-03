@@ -14,7 +14,7 @@ import TarjetaAlerta from '../components/TarjetaAlerta';
 
 // onVerResultados(alerta): lo conecta la navegación para abrir los resultados del buscador con sus criterios.
 // onNovedadesVistas(): avisa que cambiaron las novedades (para refrescar el badge de la pestaña).
-export default function MisAlertasScreen({ onVerResultados, onNovedadesVistas }) {
+export default function MisAlertasScreen({ onVerResultados, onNovedadesVistas, onIrA }) {
   const { datos, setDatos, cargando, refrescando, error, recargar, refrescar } = useListado(listarAlertas);
   const [ocupadas, setOcupadas] = useState(new Set());
 
@@ -86,6 +86,8 @@ export default function MisAlertasScreen({ onVerResultados, onNovedadesVistas })
         <EstadoVacio
           titulo="No tenés alertas"
           mensaje="Guardá una búsqueda como alerta para enterarte cuando aparezca algo que coincida."
+          accionTexto="Buscar"
+          onAccion={() => onIrA?.('buscar')}
         />
       }
       renderItem={({ item }) => (

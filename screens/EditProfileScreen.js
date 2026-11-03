@@ -327,6 +327,75 @@ export const EditProfileScreen = ({ onAbrirPerfil }) => {
       </View>
 
       <View style={styles.card}>
+        <View style={styles.reputationHeader}>
+          <Text style={styles.sectionTitle}>Reputación</Text>
+          <Text style={styles.reputationBadge}>{reputacion.etiqueta}</Text>
+        </View>
+
+        <View style={styles.metricsRow}>
+          <View style={styles.metricBox}>
+            <Text style={styles.metricNumber}>
+              {profile?.devolucionesConcretadas ?? 0}
+            </Text>
+            <Text style={styles.metricLabel}>Devoluciones</Text>
+          </View>
+
+          <View style={[styles.metricBox, styles.metricBoxPositive]}>
+            <Text style={[styles.metricNumber, styles.positiveText]}>
+              +{reputacion.positivas}
+            </Text>
+            <Text style={styles.metricLabel}>Positivas</Text>
+          </View>
+
+          <View style={[styles.metricBox, styles.metricBoxNegative]}>
+            <Text style={[styles.metricNumber, styles.negativeText]}>
+              -{reputacion.negativas}
+            </Text>
+            <Text style={styles.metricLabel}>Negativas</Text>
+          </View>
+        </View>
+
+        {reputacion.total > 0 ? (
+          <View style={styles.ratioSection}>
+            <View style={styles.ratioHeader}>
+              <Text style={styles.ratioLabel}>Balance positivo</Text>
+              <Text style={styles.ratioValue}>
+                {reputacion.porcentajePositivas}%
+              </Text>
+            </View>
+            <View style={styles.ratioTrack}>
+              <View
+                style={[
+                  styles.ratioFill,
+                  { width: `${reputacion.porcentajePositivas}%` },
+                ]}
+              />
+            </View>
+          </View>
+        ) : null}
+
+        <View style={styles.rowDivider} />
+
+        <InsigniasUsuario
+          devolucionesConcretadas={profile?.devolucionesConcretadas}
+          insignias={profile?.insignias}
+          mostrarProgreso
+        />
+
+        {profile?.id && onAbrirPerfil ? (
+          <TouchableOpacity
+            style={styles.publicProfileBtn}
+            onPress={() => onAbrirPerfil(profile.id)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.publicProfileBtnText}>
+              Ver mi perfil público
+            </Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+
+      <View style={styles.card}>
         <View style={styles.cardTitleRow}>
           <Text style={styles.sectionTitle}>Datos personales</Text>
           {hasUnsavedChanges ? (
@@ -457,7 +526,7 @@ export const EditProfileScreen = ({ onAbrirPerfil }) => {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Privacidad y seguridad</Text>
+        <Text style={styles.sectionTitle}>Privacidad</Text>
 
         <View style={styles.toggleRow}>
           <View style={styles.toggleTextWrap}>
@@ -474,27 +543,7 @@ export const EditProfileScreen = ({ onAbrirPerfil }) => {
             value={telefonoVisible}
             onValueChange={setTelefonoVisible}
             trackColor={{ false: '#cbd5e1', true: '#93c5fd' }}
-            thumbColor={telefonoVisible ? COLORS.primary : '#f8fafc'}
-          />
-        </View>
-
-        <View style={styles.rowDivider} />
-
-        <View style={styles.toggleRow}>
-          <View style={styles.toggleTextWrap}>
-            <Text style={styles.toggleTitle}>Ingreso con biometría</Text>
-            <Text style={styles.toggleDescription}>
-              {isBiometricSupported
-                ? 'Habilitá el acceso rápido con huella o rostro.'
-                : 'No disponible en este dispositivo.'}
-            </Text>
-          </View>
-          <Switch
-            value={biometricEnabled}
-            onValueChange={handleToggleBiometric}
-            disabled={updatingBiometric}
-            trackColor={{ false: '#cbd5e1', true: '#93c5fd' }}
-            thumbColor={biometricEnabled ? COLORS.primary : '#f8fafc'}
+            thumbColor={telefonoVisible ? COLORS.primary : COLORS.background}
           />
         </View>
 
@@ -518,72 +567,24 @@ export const EditProfileScreen = ({ onAbrirPerfil }) => {
       </View>
 
       <View style={styles.card}>
-        <View style={styles.reputationHeader}>
-          <Text style={styles.sectionTitle}>Reputación</Text>
-          <Text style={styles.reputationBadge}>{reputacion.etiqueta}</Text>
+        <Text style={styles.sectionTitle}>Acceso</Text>
+        <View style={styles.toggleRow}>
+          <View style={styles.toggleTextWrap}>
+            <Text style={styles.toggleTitle}>Ingreso con biometría</Text>
+            <Text style={styles.toggleDescription}>
+              {isBiometricSupported
+                ? 'Habilitá el acceso rápido con huella o rostro.'
+                : 'No disponible en este dispositivo.'}
+            </Text>
+          </View>
+          <Switch
+            value={biometricEnabled}
+            onValueChange={handleToggleBiometric}
+            disabled={updatingBiometric}
+            trackColor={{ false: '#cbd5e1', true: '#93c5fd' }}
+            thumbColor={biometricEnabled ? COLORS.primary : COLORS.background}
+          />
         </View>
-
-        <View style={styles.metricsRow}>
-          <View style={styles.metricBox}>
-            <Text style={styles.metricNumber}>
-              {profile?.devolucionesConcretadas ?? 0}
-            </Text>
-            <Text style={styles.metricLabel}>Devoluciones</Text>
-          </View>
-
-          <View style={[styles.metricBox, styles.metricBoxPositive]}>
-            <Text style={[styles.metricNumber, styles.positiveText]}>
-              +{reputacion.positivas}
-            </Text>
-            <Text style={styles.metricLabel}>Positivas</Text>
-          </View>
-
-          <View style={[styles.metricBox, styles.metricBoxNegative]}>
-            <Text style={[styles.metricNumber, styles.negativeText]}>
-              -{reputacion.negativas}
-            </Text>
-            <Text style={styles.metricLabel}>Negativas</Text>
-          </View>
-        </View>
-
-        {reputacion.total > 0 ? (
-          <View style={styles.ratioSection}>
-            <View style={styles.ratioHeader}>
-              <Text style={styles.ratioLabel}>Balance positivo</Text>
-              <Text style={styles.ratioValue}>
-                {reputacion.porcentajePositivas}%
-              </Text>
-            </View>
-            <View style={styles.ratioTrack}>
-              <View
-                style={[
-                  styles.ratioFill,
-                  { width: `${reputacion.porcentajePositivas}%` },
-                ]}
-              />
-            </View>
-          </View>
-        ) : null}
-
-        <View style={styles.rowDivider} />
-
-        <InsigniasUsuario
-          devolucionesConcretadas={profile?.devolucionesConcretadas}
-          insignias={profile?.insignias}
-          mostrarProgreso
-        />
-
-        {profile?.id && onAbrirPerfil ? (
-          <TouchableOpacity
-            style={styles.publicProfileBtn}
-            onPress={() => onAbrirPerfil(profile.id)}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.publicProfileBtnText}>
-              Ver mi perfil público
-            </Text>
-          </TouchableOpacity>
-        ) : null}
       </View>
 
       <View style={styles.footerActions}>
@@ -608,14 +609,14 @@ const styles = StyleSheet.create({
   container: {
     padding: 18,
     paddingBottom: 32,
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.background,
     gap: 14,
   },
   loader: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.background,
   },
   headerCard: {
     backgroundColor: '#ffffff',
@@ -624,7 +625,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e2e8f0',
     gap: 14,
-    shadowColor: '#0f172a',
+    shadowColor: COLORS.text,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.03,
     shadowRadius: 6,
@@ -670,7 +671,7 @@ const styles = StyleSheet.create({
   headerName: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#0f172a',
+    color: COLORS.text,
     flexShrink: 1,
   },
   solidarioTag: {
@@ -708,7 +709,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   completionWrap: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.background,
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
@@ -753,7 +754,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     borderColor: '#cbd5e1',
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.background,
     alignItems: 'center',
   },
   changePhotoText: {
@@ -768,7 +769,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e2e8f0',
     gap: 12,
-    shadowColor: '#0f172a',
+    shadowColor: COLORS.text,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.03,
     shadowRadius: 6,
@@ -782,7 +783,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#0f172a',
+    color: COLORS.text,
   },
   unsavedBadge: {
     backgroundColor: '#fffbeb',
@@ -808,7 +809,7 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.background,
     borderWidth: 1,
     borderColor: '#cbd5e1',
     borderRadius: 10,
@@ -822,7 +823,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 11,
     fontSize: 14,
-    color: '#0f172a',
+    color: COLORS.text,
   },
   clearBtn: {
     paddingLeft: 10,
@@ -871,7 +872,7 @@ const styles = StyleSheet.create({
   toggleTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#0f172a',
+    color: COLORS.text,
   },
   toggleDescription: {
     fontSize: 12,
@@ -922,7 +923,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderRadius: 10,
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.background,
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
@@ -937,7 +938,7 @@ const styles = StyleSheet.create({
   metricNumber: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#0f172a',
+    color: COLORS.text,
   },
   metricLabel: {
     fontSize: 11,
@@ -985,7 +986,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
     paddingVertical: 11,
     borderRadius: 10,
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.background,
     borderWidth: 1,
     borderColor: '#cbd5e1',
     alignItems: 'center',

@@ -6,7 +6,7 @@ import TarjetaSeguida from '../components/TarjetaSeguida';
 
 // onAbrirPublicacion(id): lo conecta la navegación para ir al detalle de la publicación.
 // onNovedadesVistas(): avisa que cambiaron las novedades (para refrescar el badge de la pestaña).
-export default function SeguidasScreen({ onAbrirPublicacion, onNovedadesVistas }) {
+export default function SeguidasScreen({ onAbrirPublicacion, onNovedadesVistas, onIrA }) {
   const { datos, setDatos, cargando, refrescando, error, recargar, refrescar } = useListado(listarSeguidas);
 
   const ponerCambio = (id, cambioEstado) =>
@@ -38,6 +38,8 @@ export default function SeguidasScreen({ onAbrirPublicacion, onNovedadesVistas }
         <EstadoVacio
           titulo="No seguís ninguna publicación"
           mensaje="Desde el detalle de una publicación podés seguirla para enterarte de sus novedades."
+          accionTexto="Buscar"
+          onAccion={() => onIrA?.('buscar')}
         />
       }
       renderItem={({ item }) => <TarjetaSeguida publicacion={item} onPress={() => abrir(item)} />}

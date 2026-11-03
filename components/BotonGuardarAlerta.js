@@ -91,7 +91,7 @@ export default function BotonGuardarAlerta({ criterios, onGuardada }) {
                 {guardando ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={styles.botonTexto}>Guardar</Text>
+                  <Text style={styles.confirmarTexto}>Guardar</Text>
                 )}
               </Pressable>
             </View>
@@ -103,18 +103,19 @@ export default function BotonGuardarAlerta({ criterios, onGuardada }) {
 }
 
 const styles = StyleSheet.create({
-  boton: { backgroundColor: COLORS.primary, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 6, alignItems: 'center' },
-  botonGuardada: { backgroundColor: COLORS.background, borderWidth: 1, borderColor: COLORS.border },
-  botonTexto: { color: '#fff' },
-  botonTextoGuardada: { color: COLORS.muted },
-  fondo: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 24 },
-  dialogo: { backgroundColor: COLORS.background, borderRadius: 8, padding: 16, gap: 8 },
-  titulo: { fontSize: 18, fontWeight: 'bold', color: COLORS.text },
-  texto: { color: COLORS.muted },
-  input: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, padding: 10, color: COLORS.text },
+  boton: { backgroundColor: COLORS.surface, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 999, alignItems: 'center' },
+  botonGuardada: { backgroundColor: COLORS.primarySoft },
+  botonTexto: { color: COLORS.primary, fontWeight: '700' },
+  botonTextoGuardada: { color: COLORS.primaryDark },
+  fondo: { flex: 1, backgroundColor: 'rgba(28,25,23,0.4)', justifyContent: 'center', padding: 24 },
+  dialogo: { backgroundColor: COLORS.surface, borderRadius: 20, padding: 20, gap: 10 },
+  titulo: { fontSize: 18, fontWeight: '800', color: COLORS.text },
+  texto: { color: COLORS.muted, lineHeight: 20 },
+  input: { backgroundColor: COLORS.background, borderRadius: 12, padding: 12, color: COLORS.text },
   error: { color: COLORS.danger },
   acciones: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 8 },
-  accion: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 6, minWidth: 90, alignItems: 'center' },
+  accion: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 999, minWidth: 90, alignItems: 'center' },
   confirmar: { backgroundColor: COLORS.primary },
-  cancelar: { color: COLORS.muted },
+  confirmarTexto: { color: COLORS.white, fontWeight: '700' },
+  cancelar: { color: COLORS.muted, fontWeight: '700' },
 });

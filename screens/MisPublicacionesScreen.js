@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Image, Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, SectionList, StyleSheet, Text } from 'react-native';
 import { EstadoCargando, EstadoError, EstadoVacio } from '../components/EstadoPantalla';
+import Aviso from '../components/ui/Aviso';
+import PublicationCard from '../components/ui/PublicationCard';
 import { COLORS } from '../config';
 import { useAuth } from '../hooks/useAuth';
 import { useConexion } from '../hooks/useConexion';
@@ -13,16 +15,7 @@ import {
   renovarPublicacion,
 } from '../services/publicaciones';
 import { conCache } from '../utils/cache';
-import { CATEGORIAS, TIPOS } from '../utils/etiquetas';
-
-const ETIQUETA_ESTADO = {
-  PENDIENTE: 'Pendiente de envío',
-  BORRADOR: 'Borrador',
-  ABIERTA: 'Abierta',
-  EN_RECLAMO: 'En reclamo',
-  RESUELTA: 'Resuelta',
-  VENCIDA: 'Vencida',
-};
+import { CATEGORIAS } from '../utils/etiquetas';
 
 // Convierte un elemento de la cola al mismo formato que usan las tarjetas.
 const pendienteATarjeta = (p) => ({
@@ -38,7 +31,7 @@ const pendienteATarjeta = (p) => ({
   error: p.error || null,
 });
 
-export default function MisPublicacionesScreen({ onAbrirPublicacion }) {
+export default function MisPublicacionesScreen({ onAbrirPublicacion, onIrA }) {
   const { user } = useAuth();
   const { conectado } = useConexion();
   const [secciones, setSecciones] = useState([]);
@@ -159,6 +152,8 @@ export default function MisPublicacionesScreen({ onAbrirPublicacion }) {
       <EstadoVacio
         titulo="Todavía no publicaste nada"
         mensaje="Cuando publiques algo, lo vas a ver acá."
+        accionTexto="Publicar"
+        onAccion={() => onIrA?.('publicar')}
       />
     );
   }
@@ -175,57 +170,34 @@ export default function MisPublicacionesScreen({ onAbrirPublicacion }) {
       contentContainerStyle={styles.lista}
       ListHeaderComponent={
         desactualizado ? (
-          <Text style={styles.aviso}>
-            Estás viendo datos guardados: pueden no estar actualizados.
-          </Text>
+          <Aviso>Estás viendo datos guardados: pueden no estar actualizados.</Aviso>
         ) : null
       }
       renderSectionHeader={({ section }) => (
         <Text style={styles.seccion}>{section.titulo} ({section.data.length})</Text>
       )}
       renderItem={({ item }) => (
-        <Pressable
-          style={styles.tarjeta}
+        <PublicationCard
+          foto={item.fotoPrincipal}
+          titulo={item.titulo}
+          tipo={item.tipo}
+          estado={item.estado}
+          linea={`${CATEGORIAS[item.categoria] || 'Sin categoría'} · ${item.barrio || 'Sin barrio'}`}
+          detalle={
+            !item.esPendiente && item.estado !== 'BORRADOR' && item.fechaVencimiento
+              ? `${item.estado === 'VENCIDA' ? 'Venció el ' : 'Vence el '}${new Date(item.fechaVencimiento).toLocaleDateString('es-AR')}`
+              : null
+          }
           onPress={() => abrir(item)}
           onLongPress={() => confirmarBorrado(item)}
         >
-          {item.fotoPrincipal ? (
-            <Image source={{ uri: item.fotoPrincipal }} style={styles.foto} />
-          ) : (
-            <View style={[styles.foto, styles.sinFoto]}>
-              <Text style={styles.sinFotoTexto}>Sin foto</Text>
-            </View>
+          {item.error ? <Text style={styles.error}>Rechazada: {item.error}</Text> : null}
+          {(item.estado === 'ABIERTA' || item.estado === 'VENCIDA') && (
+            <Pressable onPress={() => renovar(item)}>
+              <Text style={styles.renovar}>Renovar por 30 días</Text>
+            </Pressable>
           )}
-          <View style={styles.datos}>
-            <Text style={styles.titulo} numberOfLines={2}>
-              {item.titulo || 'Sin título'}
-            </Text>
-            <Text style={styles.detalle}>
-              {TIPOS[item.tipo]} · {CATEGORIAS[item.categoria] || 'Sin categoría'}
-            </Text>
-            <Text style={styles.detalle}>{item.barrio || 'Sin barrio'}</Text>
-            <Text
-              style={[
-                styles.estado,
-                (item.estado === 'BORRADOR' || item.estado === 'PENDIENTE') && styles.estadoBorrador,
-              ]}
-            >
-              {ETIQUETA_ESTADO[item.estado] || item.estado}
-            </Text>
-            {item.error && <Text style={styles.error}>Rechazada: {item.error}</Text>}
-            {!item.esPendiente && item.estado !== 'BORRADOR' && item.fechaVencimiento && (
-              <Text style={styles.detalle}>
-                {item.estado === 'VENCIDA' ? 'Venció el ' : 'Vence el '}
-                {new Date(item.fechaVencimiento).toLocaleDateString('es-AR')}
-              </Text>
-            )}
-            {(item.estado === 'ABIERTA' || item.estado === 'VENCIDA') && (
-              <Pressable onPress={() => renovar(item)}>
-                <Text style={styles.renovar}>Renovar por 30 días</Text>
-              </Pressable>
-            )}
-          </View>
-        </Pressable>
+        </PublicationCard>
       )}
       ListFooterComponent={<Text style={styles.ayuda}>Mantené apretado para eliminar.</Text>}
     />
@@ -233,19 +205,9 @@ export default function MisPublicacionesScreen({ onAbrirPublicacion }) {
 }
 
 const styles = StyleSheet.create({
-  lista: { padding: 16, gap: 10 },
-  aviso: { color: '#92400e', backgroundColor: '#fef3c7', padding: 8, borderRadius: 6, marginBottom: 8, fontSize: 13 },
-  seccion: { fontSize: 16, fontWeight: 'bold', color: COLORS.text, marginTop: 8, backgroundColor: COLORS.background },
-  tarjeta: { flexDirection: 'row', gap: 12, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 10, marginTop: 8 },
-  foto: { width: 80, height: 80, borderRadius: 8 },
-  sinFoto: { backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center' },
-  sinFotoTexto: { color: COLORS.muted, fontSize: 12 },
-  datos: { flex: 1, gap: 2 },
-  titulo: { fontWeight: 'bold', color: COLORS.text },
-  detalle: { color: COLORS.muted, fontSize: 13 },
-  estado: { color: COLORS.primary, fontWeight: '600', marginTop: 2 },
-  estadoBorrador: { color: '#d97706' },
+  lista: { padding: 16, paddingBottom: 32 },
+  seccion: { fontSize: 15, fontWeight: '700', color: COLORS.muted, marginTop: 8, marginBottom: 4 },
   error: { color: COLORS.danger, fontSize: 12 },
-  renovar: { color: COLORS.primary, fontWeight: '600', marginTop: 4 },
+  renovar: { color: COLORS.primary, fontWeight: '700', marginTop: 4 },
   ayuda: { color: COLORS.muted, textAlign: 'center', marginTop: 16, fontSize: 12 },
 });

@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { COLORS } from '../config';
+import { Alert, FlatList, StyleSheet, View } from 'react-native';
+import { SPACE } from '../config';
 import {
   aceptarReclamo,
   listarReclamosEnviados,
@@ -13,6 +13,7 @@ import { EstadoCargando, EstadoError, EstadoVacio } from '../components/EstadoPa
 import TarjetaReclamo from '../components/TarjetaReclamo';
 import { useConexion } from '../hooks/useConexion';
 import PuntoEncuentroScreen from './PuntoEncuentroScreen';
+import Segmented from '../components/ui/Segmented';
 
 const PESTANIAS = [
   {
@@ -36,7 +37,7 @@ const PESTANIAS = [
 // Sin conexión, aceptar/rechazar quedan deshabilitados (Punto 6).
 // En los reclamos aceptados se abre el punto de encuentro (Punto 8).
 // onAbrirPublicacion(id): lo conecta la navegación para ir al detalle de la publicación.
-export default function MisReclamosScreen({ onAbrirPublicacion }) {
+export default function MisReclamosScreen({ onAbrirPublicacion, onIrA }) {
   const [clave, setClave] = useState(PESTANIAS[0].clave);
   const [encuentroId, setEncuentroId] = useState(null);
   const pestania = PESTANIAS.find((p) => p.clave === clave);
@@ -48,27 +49,24 @@ export default function MisReclamosScreen({ onAbrirPublicacion }) {
   return (
     <View style={styles.container}>
       <View style={styles.selector}>
-        {PESTANIAS.map((p) => (
-          <Pressable
-            key={p.clave}
-            style={[styles.opcion, p.clave === clave && styles.opcionActiva]}
-            onPress={() => setClave(p.clave)}
-          >
-            <Text style={[styles.opcionTexto, p.clave === clave && styles.opcionTextoActiva]}>{p.titulo}</Text>
-          </Pressable>
-        ))}
+        <Segmented
+          opciones={PESTANIAS.map((p) => ({ value: p.clave, label: p.titulo }))}
+          valor={clave}
+          onChange={setClave}
+        />
       </View>
       <ListaReclamos
         key={clave}
         pestania={pestania}
         onAbrirPublicacion={onAbrirPublicacion}
         onAbrirEncuentro={setEncuentroId}
+        onIrA={onIrA}
       />
     </View>
   );
 }
 
-function ListaReclamos({ pestania, onAbrirPublicacion, onAbrirEncuentro }) {
+function ListaReclamos({ pestania, onAbrirPublicacion, onAbrirEncuentro, onIrA }) {
   const recibidos = pestania.clave === 'RECIBIDOS';
   const { datos, setDatos, cargando, refrescando, error, recargar, refrescar } = useListado(pestania.cargar);
   const [ocupadas, setOcupadas] = useState(new Set());
@@ -132,7 +130,14 @@ function ListaReclamos({ pestania, onAbrirPublicacion, onAbrirEncuentro }) {
       refreshing={refrescando}
       onRefresh={refrescar}
       contentContainerStyle={datos.length === 0 ? styles.vacio : styles.lista}
-      ListEmptyComponent={<EstadoVacio titulo={pestania.vacio} mensaje={pestania.vacioMensaje} />}
+      ListEmptyComponent={
+        <EstadoVacio
+          titulo={pestania.vacio}
+          mensaje={pestania.vacioMensaje}
+          accionTexto="Buscar"
+          onAccion={() => onIrA?.('buscar')}
+        />
+      }
       renderItem={({ item }) => (
         <TarjetaReclamo
           reclamo={item}
@@ -151,11 +156,7 @@ function ListaReclamos({ pestania, onAbrirPublicacion, onAbrirEncuentro }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  selector: { flexDirection: 'row', margin: 16, marginBottom: 0, borderWidth: 1, borderColor: COLORS.primary, borderRadius: 6, overflow: 'hidden' },
-  opcion: { flex: 1, paddingVertical: 8, alignItems: 'center' },
-  opcionActiva: { backgroundColor: COLORS.primary },
-  opcionTexto: { color: COLORS.primary },
-  opcionTextoActiva: { color: '#fff', fontWeight: 'bold' },
-  lista: { padding: 16, gap: 8 },
+  selector: { marginHorizontal: SPACE.lg, marginTop: SPACE.md },
+  lista: { padding: SPACE.lg, gap: 8 },
   vacio: { flexGrow: 1 },
 });
