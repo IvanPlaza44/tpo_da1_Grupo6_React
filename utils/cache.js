@@ -48,3 +48,23 @@ export const conCache = async (clave, pedir) => {
     throw error;
   }
 };
+
+const borrarCache = async (clave) => {
+  try {
+    await AsyncStorage.removeItem(PREFIJO + clave);
+  } catch (error) {
+    // idem
+  }
+};
+
+export const conCacheReciente = async (clave, pedir, { grupo, max = 20 }) => {
+  const resultado = await conCache(clave, pedir);
+  if (!resultado.desactualizado) {
+    const guardado = (await leerCache(grupo))?.datos || [];
+    const lista = [clave, ...guardado.filter((c) => c !== clave)];
+    const sobrantes = lista.slice(max);
+    await guardarCache(grupo, lista.slice(0, max));
+    await Promise.all(sobrantes.map(borrarCache));
+  }
+  return resultado;
+};
