@@ -21,7 +21,9 @@ import { ordenarPorCercania } from '../utils/distancia';
 import { resumenFiltros, sinVacios } from '../utils/filtros';
 import { irA } from '../utils/navegacion';
 
-const TAMANIO = 10;
+const TAMANIO = 10; // resultados que se muestran por tanda
+const TAMANIO_LOTE = 50; // al ordenar por cercanía se baja todo en lotes de 50
+const MAX_PAGINAS = 20; // tope de seguridad para no pedir de más
 const RANGOS_RAPIDOS = RANGOS.filter((r) => r.value !== 'RANGO');
 
 // Pide permiso y devuelve { latitude, longitude }, o null si no se pudo.
@@ -52,6 +54,8 @@ export default function ResultadosScreen({ navigation, route, onAbrirPublicacion
 
   const [orden, setOrden] = useState('RECIENTES');
   const [ubicacion, setUbicacion] = useState(null);
+  const [limiteLocal, setLimiteLocal] = useState(TAMANIO); // cuántos se muestran en "más cercanos"
+  const esCercanos = orden === 'CERCANOS' && ubicacion !== null;
 
   const [panelAbierto, setPanelAbierto] = useState(false);
   const [borrador, setBorrador] = useState(filtros);
@@ -81,13 +85,59 @@ export default function ResultadosScreen({ navigation, route, onAbrirPublicacion
     }
   }, []);
 
-  // Se ejecuta al entrar y cada vez que se aplican filtros nuevos.
+  // "Más cercanos": para ordenar bien hay que tener TODOS los resultados, no solo la primera página.
+  // Se piden todas las páginas (en lotes de 50) y después se muestran de a 10.
+  const cargarTodo = useCallback(async (filtrosActuales) => {
+    try {
+      setCargando(true);
+      setError(null);
+      let todos = [];
+      let numeroPagina = 0;
+      let paginasTotales = 1;
+      let elementosTotales = 0;
+      while (numeroPagina < paginasTotales && numeroPagina < MAX_PAGINAS) {
+        const respuesta = await buscarPublicaciones({
+          ...filtrosActuales,
+          orden: 'RECIENTES',
+          pagina: numeroPagina,
+          tamanio: TAMANIO_LOTE,
+        });
+        todos = todos.concat(respuesta.contenido);
+        paginasTotales = respuesta.totalPaginas;
+        elementosTotales = respuesta.totalElementos;
+        numeroPagina += 1;
+      }
+      setItems(todos);
+      setPagina(0);
+      setTotalPaginas(1); // ya se bajó todo: no quedan páginas por pedir al servidor
+      setTotal(elementosTotales);
+      setLimiteLocal(TAMANIO);
+    } catch (e) {
+      setError(getErrorMessage(e));
+    } finally {
+      setCargando(false);
+    }
+  }, []);
+
+  // Se ejecuta al entrar, al aplicar filtros nuevos y al cambiar el orden.
   useEffect(() => {
-    cargar(0, filtros);
-  }, [filtros, cargar]);
+    if (esCercanos) cargarTodo(filtros);
+    else cargar(0, filtros);
+  }, [filtros, esCercanos, cargar, cargarTodo]);
+
+  const ordenados = useMemo(
+    () => (esCercanos ? ordenarPorCercania(items, ubicacion) : items),
+    [items, esCercanos, ubicacion]
+  );
+  const visibles = esCercanos ? ordenados.slice(0, limiteLocal) : ordenados;
 
   const cargarMas = () => {
     if (cargando || cargandoMas || error) return;
+    if (esCercanos) {
+      // Ya está todo en el celular: solo se muestran 10 más.
+      if (limiteLocal < ordenados.length) setLimiteLocal((limite) => limite + TAMANIO);
+      return;
+    }
     if (pagina + 1 >= totalPaginas) return;
     cargar(pagina + 1, filtros);
   };
@@ -100,11 +150,6 @@ export default function ResultadosScreen({ navigation, route, onAbrirPublicacion
     }
     setOrden(nuevoOrden);
   };
-
-  const visibles = useMemo(
-    () => (orden === 'CERCANOS' && ubicacion ? ordenarPorCercania(items, ubicacion) : items),
-    [items, orden, ubicacion]
-  );
 
   // ---- Refinar filtros sin volver al inicio ----
   const alternarPanel = () => {
@@ -218,7 +263,9 @@ export default function ResultadosScreen({ navigation, route, onAbrirPublicacion
           </Text>
         </TouchableOpacity>
         {/* El botón de alertas lo armó el compañero de "Mis alertas": recibe los criterios. */}
-        <BotonGuardarAlerta criterios={filtros} />
+        <View style={styles.alerta}>
+          <BotonGuardarAlerta criterios={filtros} />
+        </View>
       </View>
     );
   };
@@ -285,5 +332,6 @@ const styles = StyleSheet.create({
   espacio: { marginVertical: 24 },
   vacio: { alignItems: 'stretch', paddingVertical: 24 },
   vacioTitulo: { fontSize: 18, fontWeight: '700', color: COLORS.text, textAlign: 'center' },
+  alerta: { marginTop: 8 },
   vacioTexto: { color: COLORS.muted, textAlign: 'center', marginTop: 6, marginBottom: 8 },
 });
